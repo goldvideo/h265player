@@ -84,7 +84,7 @@ http://localhost:8000/demo/demo.html
 通过demuxer.js实现媒体数据的解封装，从而获取到独立的视频（H265）数据和音频（AAC）数据。详细信息请参考demuxer.js
 
 ## 解码器
-通过ffmpeg实现H265数据的软解码，如果要在浏览器中调用ffmpeg，需要把ffmpeg编译成wasm进行调用，具体ffmpeg编译成wasm过程，可参考[decoder_wasm](../../decoder_wasm)
+通过ffmpeg实现H265数据的软解码，如果要在浏览器中调用ffmpeg，需要把ffmpeg编译成wasm进行调用，具体ffmpeg编译成wasm过程，可参考[decoder_wasm](https://github.com/goldvideo/decoder_wasm)
 ## ImagePlayer
 ![](./docs/ImagePlayer.png)
 通过[yuv-canvas](https://github.com/brion/yuv-canvas)实现YUV数据渲染，ImagePlayer中会有一个队列存储YUV数据，并计算当前yuv数据的时间长度，大于等于readybufferLength的值时，会触发ImagePlayerReady事件。当音视频播放器都处于ready状态时，H265播放器触发dataReady事件，开始调用play方法进行视频播放。
