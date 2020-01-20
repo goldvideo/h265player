@@ -1,3 +1,5 @@
+<img src="./dist/image/goldvideo-logo-w.png" width="250"></img>
+
 # 简介
 
 随着视频编码技术的发展，相比H.264, H.265同等画质体积仅为一半、带宽占用省一半、画质更细腻等诸多优势。
