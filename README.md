@@ -139,6 +139,7 @@ https://omc3i.csb.app/
 [demo](./demo/componentadd.html)
 
 # API
-TODO github pages
+https://goldvideo.github.io/h265player/API/index.html
+
 # 开发与维护
     * github: https://github.com/goldvideo/h265player
