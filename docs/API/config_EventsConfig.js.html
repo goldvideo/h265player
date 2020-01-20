@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: config/EventsConfig.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: config/EventsConfig.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @copyright: Copyright (C) 2019
+ * @desc: events object
+ * @author: liuliguo 
+ * @file: EventsConfig.js
+ */
+
+const Events = {
+  ProcessorResetEnd: 'DataProcessorController.processorResetEnd',
+  DataProcessorReady: 'DataProcessorController.dataProcessorReady',
+  // DecodeResetEnd: 'DecodeController.resetEnd',
+  DecodeStartDecode: 'DecodeController.startDecode',
+  DecodeFlush: 'DecodeController.flush',
+  DecodeDecoded: 'DecodeController.decoded',
+  DecodeApppendEnd: 'DecodeController.appendEnd',
+  DecodeFlushEnd: 'DecodeController.flushEnd',
+  DecodeReady: 'DecodeController.ready',
+
+  DemuxResetEnd: 'DemuxController.resetEnd',
+  DemuxStartDemux: 'DemuxController.startDemux',
+  DemuxLast: 'DemuxController.last',
+  DemuxVideo: 'DemuxController.video',
+  DemuxAAC: 'DemuxController.AAC',
+  DemuxReady: 'DemuxController.ready',
+
+  ImagePlayerRenderEnd: 'ImagePlayer.renderEnd',
+  ImagePlayerWait: 'ImagePlayer.wait',
+  ImagePlayerReady: 'ImagePlayer.ready',
+  ImagePlayerEnd: 'ImagePlayer.end',
+  ImagePlayerBuffeUpdate: 'ImagePlayer.bufferUpdate',
+
+  ControlBarPlay: 'ControlBar.onPlay',
+  ControlBarPause: 'ControlBar.onPause',
+  ControlBarPauseLoading: 'ControlBar.onPauseLoading',
+
+  LoadDataReadBufferByNo: 'LoadData.readBufferByNo',
+  LoadDataReadBuffer: 'LoadData.readBuffer',
+  LoadDataRead: 'LoadData.onRead',
+  LoadDataSeek: 'LoadData.onSeek',
+  LoadDataFirstLoaded: 'LoadData.onFirstLoaded',
+  
+  LoaderPlayListStart: 'Loader.playlistStart',
+  LoaderLoading: 'Loader.onLoading',
+  LoaderError: 'Loader.onError',
+  LoaderLoaded: 'Loader.onLoaded',
+  LoaderUpdateSpeed: 'Loader.updateSpeed',
+  LoaderLoadFile: 'Loader.loadFile',
+  LoaderPlayListLoaded: 'Loader.playlistLoaded',
+
+  AudioPlayerReady: 'AudioPlayer.MSEReady',
+  AudioPlayerDataReady: 'AudioPlayer.dataReady',
+  AudioPlayerWait: 'AudioPlayer.wait',
+  AudioPlayerEnd: 'AudioPlayer.end',
+  AudioPlayerPlaySuccess: 'AudioPlayer.playSuccess',
+  AudioPlayerPlayFail: 'AudioPlayer.playFail',
+
+  PlayerMaxPTS: 'DemuxController.maxpts',
+  PlayerSeekEnd: 'Player.seekend',
+  PlayerSpeedTo: 'Player.speedTo',
+  PlayerChangeRate: 'Player.changeRate',
+  PlayerChangeSrc:  'Player.changeSrc',
+  PlayerPlaying: 'Player.playing',
+  PlayerTimeUpdate: 'Player.timeUpdate',
+  PlayerbufferUpdate: 'Player.bufferupdate',
+  PlayerResetReady: 'Player.resetReady',
+  PlayerWait: 'Player.wait',
+  PlayerLoadNext: 'Player.loadNext',
+  PlayerOnPlay: 'Player.onPlay',
+  PlayerOnPause: 'Player.onPause',
+  PlayerOnSeek: 'Player.onSeek',
+  PlayerOnVolume: 'Player.onVolume',
+  PlayerReady: 'Player.ready',
+  /**
+   * Event handling during player playing
+   * @event Player#play
+   * @type {Player}
+   * 
+  */
+  PlayerPlay: 'Player.play',
+  PlayerReset: 'Player.reset',
+  PlayerLoadedMetaData: 'Player.loadedMetaData',
+  /**
+   * Event handling after playing ends
+   * @event Player#end
+   * @type {Player}
+   * 
+  */
+  PlayerEnd: 'Player.end',
+  /**
+   * Event handling when playing pauses
+   * @event Player#pause
+   * @type {Player}
+   * 
+  */
+  PlayerPause: 'Player.pause',
+  /**
+   * Event handling when player seeking data
+   * @event Player#seeking
+   * @type {Player}
+   * 
+  */
+  PlayerSeeking: 'Player.seeking',
+  PlayerAlert: 'Player.alert',
+  PlayerThrowError: 'Player.throwError',
+
+  StreamDataReady: 'StreamController.dataReady',
+}
+
+export default Events</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="GoldPlay.html">GoldPlay</a></li><li><a href="Player.html">Player</a></li></ul><h3>Events</h3><ul><li><a href="Player.html#event:end">end</a></li><li><a href="Player.html#event:pause">pause</a></li><li><a href="Player.html#event:play">play</a></li><li><a href="Player.html#event:seeking">seeking</a></li></ul><h3>Global</h3><ul><li><a href="global.html#changeRate">changeRate</a></li><li><a href="global.html#changeSpeed">changeSpeed</a></li><li><a href="global.html#changeSrc">changeSrc</a></li><li><a href="global.html#destroy">destroy</a></li><li><a href="global.html#Events">Events</a></li><li><a href="global.html#getComponent">getComponent</a></li><li><a href="global.html#pause">pause</a></li><li><a href="global.html#play">play</a></li><li><a href="global.html#registerComponent">registerComponent</a></li><li><a href="global.html#seek">seek</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.3</a> on Thu Jan 16 2020 10:40:02 GMT+0800 (GMT+08:00)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

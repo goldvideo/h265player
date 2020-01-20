@@ -1,0 +1,83 @@
+{
+  "name": "goldvideo",
+  "version": "0.0.6",
+  "description": "goldplay-h265player",
+  "main": "dist/goldplay-h265.js",
+  "module": "dist/goldplay-h265.esm.js",
+  "directories": {
+    "doc": "doc",
+    "test": "test"
+  },
+  "scripts": {
+    "dev": "webpack --config build/webpack.dev.conf.js --watch --display-error-details",
+    "test": "webpack --config build/webpack.test.conf.js",
+    "build": "webpack --config build/webpack.prod.conf.js",
+    "build:module": "npm run build --module",
+    "build:doc": "jsdoc -c jsdoc.json",
+    "merge": "",
+    "jest": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/goldvideo/h265player"
+  },
+  "dependencies": {
+    "demuxer": "file:../demuxer",
+    "loadjs": "^4.2.0",
+    "yuv-buffer": "^1.0.0",
+    "yuv-canvas": "^1.2.6"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.7.5",
+    "@babel/plugin-proposal-class-properties": "^7.7.4",
+    "@babel/plugin-transform-runtime": "^7.7.6",
+    "@babel/polyfill": "^7.7.0",
+    "@babel/preset-env": "^7.7.6",
+    "@babel/runtime": "^7.7.6",
+    "autoprefixer": "^9.7.3",
+    "babel-eslint": "^10.0.3",
+    "babel-jest": "^24.9.0",
+    "babel-loader": "^8.0.6",
+    "babel-plugin-dynamic-import-webpack": "^1.1.0",
+    "clean-webpack-plugin": "^2.0.2",
+    "copy-webpack-plugin": "^5.1.0",
+    "css-loader": "^2.1.1",
+    "cssnano": "^4.1.10",
+    "eslint": "^6.8.0",
+    "jest": "^24.9.0",
+    "jsdoc": "^3.6.3",
+    "mini-css-extract-plugin": "^0.7.0",
+    "postcss": "^7.0.24",
+    "postcss-cssnext": "^3.1.0",
+    "postcss-import": "^12.0.1",
+    "postcss-loader": "^3.0.0",
+    "postcss-url": "^8.0.0",
+    "precss": "^4.0.0",
+    "rollup": "^1.27.9",
+    "rollup-plugin-babel": "^4.3.3",
+    "rollup-plugin-uglify": "^6.0.3",
+    "style-loader": "^0.23.1",
+    "stylelint": "^10.1.0",
+    "stylelint-webpack-plugin": "^0.10.5",
+    "uglifyjs-webpack-plugin": "^2.2.0",
+    "web-audio-test-api": "^0.5.2",
+    "webpack": "^4.41.2",
+    "webpack-cli": "3.3.0",
+    "webpack-merge": "^4.2.2",
+    "webpack-require": "0.0.16",
+    "webpack2-polyfill-plugin": "^0.0.2",
+    "webworkify-webpack": "^2.1.5"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "keywords": [
+    "h265",
+    "video",
+    "player",
+    "webassmebly"
+  ],
+  "author": "lichunping,liuliguo,xubaoyu",
+  "license": "ISC"
+}

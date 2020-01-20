@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Class: Player</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Class: Player</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        <h2><span class="attribs"><span class="type-signature"></span></span>Player<span class="signature">()</span><span class="type-signature"></span></h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+
+    
+
+    
+    <h4 class="name" id="Player"><span class="type-signature"></span>new Player<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    
+
+<table class="props">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>sourceURL</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The url of the video to play</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>source</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The url of the video to play</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>defaultRate</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The default value of playing rate</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>type</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The type of the video, such as HLS</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>rateList</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;Object></span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The rate list of the player</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>processURL</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">process the url of video source</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>maxBufferLength</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The maximum value of the buffer, its default value is 5000(ms)</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>autoPlay</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">If auto play after initializing the Player</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>libPath</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The path of decoder</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>preload</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">If pre load video before playing</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>startTime</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Start time to play the video</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>playbackRate</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Playback speed</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>controlBarHeight</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The height of the control bar</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>alertError</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">AlertError</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The alert info when error happens</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>httpWorker</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Worker</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">set User's web worker</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>afterLoadPlaylist</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">To handle operations after playlist is loaded</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="Player.js.html">Player.js</a>, <a href="Player.js.html#line89">line 89</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+        <p class="code-caption">Example of rateList.</p>
+    
+    <pre class="prettyprint"><code>// let options = {
+       rateList:[
+           {"url":"http://localhost/20190902/01/a5/029f8fad8868a7116f20d8ae5b075996.m3u8","id":51,"name":"720P","value":"720"},
+           {"url":"http://localhost/20190902/f0/db/ee545466ced38973a9d60fe7f24ed409.m3u8","id":51,"name":"高清","value":"600"},
+           {"url":"http://localhost/20190902/78/6c/5a5a99476f4f792e2e7a701ba1f6d5ad.m3u8","id":264,"name":"极速","value":"jisu"},
+           {"url":"http://localhost/20190902/54/05/7e714a321d9e7d92c937582b2e439833.m3u8","id":265,"name":"流畅","value":"300"}]
+       }</code></pre>
+
+
+
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Events</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="event:end">end</h4>
+    
+
+    
+
+
+
+<div class="description">
+    Event handling after playing ends
+</div>
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type"><a href="Player.html">Player</a></span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="config_EventsConfig.js.html">config/EventsConfig.js</a>, <a href="config_EventsConfig.js.html#line82">line 82</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="event:pause">pause</h4>
+    
+
+    
+
+
+
+<div class="description">
+    Event handling when playing pauses
+</div>
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type"><a href="Player.html">Player</a></span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="config_EventsConfig.js.html">config/EventsConfig.js</a>, <a href="config_EventsConfig.js.html#line89">line 89</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="event:play">play</h4>
+    
+
+    
+
+
+
+<div class="description">
+    Event handling during player playing
+</div>
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type"><a href="Player.html">Player</a></span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="config_EventsConfig.js.html">config/EventsConfig.js</a>, <a href="config_EventsConfig.js.html#line73">line 73</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="event:seeking">seeking</h4>
+    
+
+    
+
+
+
+<div class="description">
+    Event handling when player seeking data
+</div>
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type"><a href="Player.html">Player</a></span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="config_EventsConfig.js.html">config/EventsConfig.js</a>, <a href="config_EventsConfig.js.html#line96">line 96</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="GoldPlay.html">GoldPlay</a></li><li><a href="Player.html">Player</a></li></ul><h3>Events</h3><ul><li><a href="Player.html#event:end">end</a></li><li><a href="Player.html#event:pause">pause</a></li><li><a href="Player.html#event:play">play</a></li><li><a href="Player.html#event:seeking">seeking</a></li></ul><h3>Global</h3><ul><li><a href="global.html#changeRate">changeRate</a></li><li><a href="global.html#changeSpeed">changeSpeed</a></li><li><a href="global.html#changeSrc">changeSrc</a></li><li><a href="global.html#destroy">destroy</a></li><li><a href="global.html#Events">Events</a></li><li><a href="global.html#getComponent">getComponent</a></li><li><a href="global.html#pause">pause</a></li><li><a href="global.html#play">play</a></li><li><a href="global.html#registerComponent">registerComponent</a></li><li><a href="global.html#seek">seek</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.3</a> on Thu Jan 16 2020 10:40:02 GMT+0800 (GMT+08:00)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

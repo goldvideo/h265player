@@ -1,0 +1,9 @@
+pages:
+  script:
+  - mkdir public
+  - cp -r docs/API/* public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master

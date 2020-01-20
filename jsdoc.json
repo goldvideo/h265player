@@ -1,0 +1,12 @@
+{
+  "source": {
+    "include": [ "src/GoldPlay.js", "src/Player.js", "src/config" ]
+  },
+  "opts": {
+    "template": "node_modules/jsdoc/templates/default",
+    "encoding": "utf8",
+    "destination": "./docs/API",
+    "recurse": true,
+    "verbose": true
+  }
+}

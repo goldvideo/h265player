@@ -1,0 +1,30 @@
+*node_modules/
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+test/unit/coverage
+test/e2e/reports
+selenium-debug.log
+package-lock.json
+lerna-debug
+
+#generated theme
+theme/lib/
+
+# ignore dist
+dist/*.js
+dist/*.css
+tmp/
+
+# Editor directories and files
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.vscode
+
+# 打包文件
+*.tgz
+*.zip

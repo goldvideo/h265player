@@ -1,0 +1,83 @@
+<!Doctype html>
+<html xmlns=http://www.w3.org/1999/xhtml> <head>
+<meta http-equiv=Content-Type content="text/html;charset=utf-8">
+<meta http-equiv=X-UA-Compatible content="IE=edge,chrome=1">
+<meta content=always name=referrer>
+<link rel="shortcut icon" href=/favicon.ico type=image/x-icon> <title>H.265在线播放器DEMO</title>
+<link rel="stylesheet" href="../dist/goldplay-h265.css">
+<script src="../dist/goldplay-h265-sdk.js"></script>
+<style>
+  .play-container {
+    width: 800px;
+    height: 600px;
+    /* background-color: #000; */
+    margin: 20px 0 0 100px;
+    float:left;
+  }
+
+  .inline {
+    display: inline-block;
+    width: 50px;
+  }
+  .play-container2 {
+    width: 300px;
+    height: 400px;
+    background-color: red;
+    margin: 0 0 0 100px;
+    float:left;
+  }
+  code {
+    font-family: Arial,Helvetica,sans-serif;
+    color: #476582;
+    padding: .25rem .5rem;
+    margin: 0;
+    font-size: .85em;
+    background-color: #e6effb;
+    border-radius: 3px;
+  }
+  code.desc {
+    background-color: rgba(27,31,35,.05);
+  }
+  .goldplay__control--testcom {
+    display: inline-block;
+    color: #ccc;
+    vertical-align: middle;
+    margin: -14px 10px 0 0;
+  }
+</style>
+</head>
+
+<body>
+  <div id="PlayerWrapper">
+    <div class="play-container"></div>
+  </div>
+  <br clear="all">
+  <br>
+  <script type="module">
+    //load compoent
+    import './component.js'
+
+    (function (win, doc) {
+      const Config = {
+        get buildPath() {
+          let path = win.location.origin
+          let pathname = win.location.pathname
+          let demoIdx = pathname.lastIndexOf('/demo/')
+          return path + pathname.substr(0, demoIdx) + '/dist/'
+        },
+        get libPath() {
+          return this.buildPath + 'lib/'
+        }
+      }
+      let el = doc.querySelector('.play-container')
+      let player = new GoldPlay(el, {
+        sourceURL: 'http://localhost:9011/gitwork/date/265/playlist.m3u8',
+        type: 'HLS',
+        libPath: Config.libPath,
+        playBackRate: 1
+      })
+    })(window, document)
+  </script>
+</body>
+
+</html>
