@@ -134,7 +134,7 @@ let options = {
 let player = new GoldPlay(el, options}
 ```
 # 在线demo
-https://omc3i.csb.app/
+https://omc3i.codesandbox.io/
 # 组件扩展
 如何扩展UI组件请参考[文档](./docs/addComponentReadme.md)
 
