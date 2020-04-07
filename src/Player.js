@@ -23,7 +23,7 @@ import ComponentsController from './components/ComponentsController'
 import ControlBarController from './control-bar/ControlBarController'
 import DataProcessorController from './data-processor/dataProcessorController'
 import StreamController from './action/StreamController.js'
-import ImagePlayer from './ImagePlayer/ImagePlayer.js'
+import ImagePlayer from './imagePlayer/ImagePlayer.js'
 import webworkify from 'webworkify-webpack'
 import Events from './config/EventsConfig'
 
