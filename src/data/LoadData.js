@@ -206,6 +206,9 @@ class LoadData extends BaseClass {
         this.bufferPool.push(buffer)
         return true
       }
+      if (this.bufferPool.indexOfByKey('no', buffer.no)) {
+        return true
+      }      
       this.bufferPool.splice(0, this.bufferPool.length)
     }
     this.bufferPool.push(buffer)
