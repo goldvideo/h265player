@@ -19,13 +19,23 @@
     display: inline-block;
     width: 50px;
   }
+  .play-container2 {
+    width: 300px;
+    height: 400px;
+    background-color: red;
+    margin: 20px 0 0 100px;
+    float:left;
+  }
 </style>
 </head>
 
 <body>
   <div id="PlayerWrapper">
-    <h3>H.265 Player <b>在线播放器Demo1</b><em class="demo1" id="Demo1">DEMO</em></h3>
+    <h3>H.265 Player <b>Demo2 同时两个播放器实例</b>
+    <em class="demo1" id="Demo1">DEMO</em>
+    </h3>
     <div class="play-container"></div>
+    <div class="play-container2"></div>
   </div>
   <br clear="all">
   <br>
@@ -42,9 +52,14 @@
           return this.buildPath + 'lib/'
         },
         get src() {
+          return win.location.origin + '/data/video1/playlist.m3u8'
+        },
+        get src2() {
           return win.location.origin + '/data/video2/playlist.m3u8'
         }
       }
+
+      // demo1
       let el = doc.querySelector('.play-container')
       let player = new GoldPlay(el, {
         sourceURL: Config.src,
@@ -52,6 +67,16 @@
         libPath: Config.libPath,
         playBackRate: 1,
       })
+
+      // demo2
+      let el2 = doc.querySelector('.play-container2')
+      let player2 = new GoldPlay(el2, {
+        sourceURL: Config.src2,
+        type: 'HLS',
+        libPath: Config.libPath,
+        playBackRate: 1,
+      })
+
     })(window, document)
   </script>
 </body>
