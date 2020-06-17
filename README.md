@@ -42,6 +42,8 @@ Firefox (>52)
 ├─goldvideo
 │  ├─demuxer
 │  ├─h265player
+│  ├─decoder_wasm
+│  ├─example
 ```
 
 ## Nginx配置：
