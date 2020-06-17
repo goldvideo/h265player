@@ -42,20 +42,23 @@
   <script>
     (function (win, doc) {
       const Config = {
-        get buildPath() {
+        get basePath() {
           let path = win.location.origin
           let pathname = win.location.pathname
           let demoIdx = pathname.lastIndexOf('/demo/')
-          return path + pathname.substr(0, demoIdx) + '/dist/'
+          return path + pathname.substr(0, demoIdx)
+        },
+        get buildPath() {
+          return this.basePath + '/dist/'
         },
         get libPath() {
           return this.buildPath + 'lib/'
         },
         get src() {
-          return win.location.origin + '/data/video1/playlist.m3u8'
+          return this.basePath + '/data/video1/playlist.m3u8'
         },
         get src2() {
-          return win.location.origin + '/data/video2/playlist.m3u8'
+          return this.basePath + '/data/video2/playlist.m3u8'
         }
       }
 
@@ -66,6 +69,7 @@
         type: 'HLS',
         libPath: Config.libPath,
         playBackRate: 1,
+        controlBarAutoHide: true
       })
 
       // demo2
