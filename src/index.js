@@ -8,7 +8,6 @@
  */
 
 import Player from './GoldPlay'
-import './themes/player.css'
+// import './themes/player.css'
 
 export default Player
-

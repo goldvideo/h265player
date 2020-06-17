@@ -98,6 +98,7 @@ class Player extends BaseClass {
     this.options.events = getEvents()
     this.maxBufferLength = options.maxBufferLength !== undefined ? options.maxBufferLength : this.maxBufferLength
     this.autoPlay = options.autoPlay !== undefined ? options.autoPlay : this.autoPlay
+    this.controlBarAutoHide = options.controlBarAutoHide !== undefined ? options.controlBarAutoHide : this.controlBarAutoHide
     this.#libPath =
       options.libPath !== undefined ? options.libPath : this.#libPath
     this.preload =

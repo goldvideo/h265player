@@ -11,7 +11,7 @@ class ReplayButton extends BaseComponent {
   template = this.createTemplate`
   <gp-button class="goldplay__control--replay" title="${'title'}" data-display="${'display'}">
   <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
-  width="28px" height="28px" viewBox="0 0 245.000000 206.000000"
+  width="24px" height="24px" viewBox="0 0 245.000000 206.000000"
   preserveAspectRatio="xMidYMid meet">
  <g transform="translate(0.000000,206.000000) scale(0.100000,-0.100000)"
  fill="#f1f1f1" stroke="1">
