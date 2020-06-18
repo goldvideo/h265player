@@ -26,8 +26,13 @@ Firefox (>52)
 * cd ..
 * git clone https://github.com/goldvideo/h265player.git
 * cd h265player
+
 * npm install
+
+# install demuxer module from local
 * npm install ../demuxer
+# or install demuxer module from online
+* npm i demuxer
 
 * 以下命令根据需要四选一
 * npm run dev # 运行开发环境
@@ -52,7 +57,7 @@ Firefox (>52)
     server {
         listen       8000;
         location / {
-            root   <path of goldvideo>/h265player;
+            root   <path of goldvideo>/goldvideo;
             index  index.html index.htm;
             autoindex on;
         }
@@ -62,7 +67,7 @@ Firefox (>52)
 ## 测试页面：
 
 ```
-http://localhost:8000/demo/demo.html
+http://localhost:8000/h265player/demo/demo.html
 ```
 
 # 主要模块结构

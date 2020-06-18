@@ -28,7 +28,9 @@ class GoldPlay extends Player {
     super(el, options)
     this.options.processURL = options.processURL
     this.libPath = options.libPath
-    this.init()
+    if (this.options.needInit !== false) {
+      this.init()
+    }
   }
 
   /**

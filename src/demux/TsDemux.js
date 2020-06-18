@@ -4,9 +4,9 @@
  * @author: liuliguo 
  * @file: TsDemux.js
  */
-// import Mux from '../lib/mux.js'
-// import Mux from '../lib/demuxer.js'
-import Mux from 'demuxer'
+
+import { TSDemux, Events as DemuxerEvents } from 'demuxer';
+
 import { AV_TIME_BASE_Q }from '../config/Config.js'
 class TsDemux {
   previousPes = null
@@ -25,23 +25,55 @@ class TsDemux {
   }
   init() {
     try {
-      // this.demuxer = new Mux('m2ts', 'mp4', {
-      this.demuxer = new Mux('m2ts', {
+
+      this.demuxer = new TSDemux({
         enableWorker: false,
         debug: false,
         onlyDemuxElementary: true
       })
-      this.demuxer.on(Mux.Events.DEMUX_DATA, event => {
-        if (event instanceof Array) {
-          this.dataArray.push(event)
-          this.demuxed(this.dataArray)
-          this.dataArray = []
-        } else {
-          this.dataArray.push(event)
-        }
+
+      this.demuxer.on(DemuxerEvents.DEMUX_DATA, event => {
+        this.dataArray.push(event)
       })
+
+      this.demuxer.on(DemuxerEvents.DONE, event => {
+        this.demuxed(this.dataArray)
+        this.dataArray = []
+        //one ts demux finished
+        this.previousPes.partEnd = true
+        //the last ts packet demux finished
+        this.previousPes.lastTS = this.isLast
+
+        if (this.isLast) {
+            this.maxPTS = Math.min(this.maxAudioPTS, this.maxVideoPTS)
+            //the audio has finished
+            pes.audioEnd = true
+            this.audioQueue(pes)
+            self.postMessage({
+              type: 'demuxedAAC',
+              data: this.audioArray
+            })
+            this.audioArray = []
+            self.postMessage({
+            type: 'maxPTS',
+            data: {
+                maxAudioPTS: this.maxAudioPTS,
+                maxVideoPTS: this.maxVideoPTS
+            }
+            })
+        } else {
+            self.postMessage({
+            type: 'demuxedAAC',
+            data: this.audioArray
+            })
+            this.audioArray = []
+        }
+        //start decode H265
+        this.decode.push(this.videoArray)
+            
+        })
     } catch (error) {
-      console.error('初始化Mux失败')
+      console.error('init demuxer failed.')
     }
   }
   push(data) {
@@ -55,42 +87,6 @@ class TsDemux {
   tsDemuxed(data) {
     let streamType = data.stream_type
     let pes = data.pes || {}
-    if (data instanceof Array) {
-      //one ts demux finished
-      this.previousPes.partEnd = true
-      //the last ts packet demux finished
-      this.previousPes.lastTS = this.isLast
-
-      if (this.isLast) {
-        this.maxPTS = Math.min(this.maxAudioPTS, this.maxVideoPTS)
-        //the audio has finished
-        pes.audioEnd = true
-        this.audioQueue(pes)
-        self.postMessage({
-          type: 'demuxedAAC',
-          data: this.audioArray
-        })
-        this.audioArray = []
-        self.postMessage({
-          type: 'maxPTS',
-          data: {
-            maxAudioPTS: this.maxAudioPTS,
-            maxVideoPTS: this.maxVideoPTS
-          }
-        })
-      } else {
-        self.postMessage({
-          type: 'demuxedAAC',
-          data: this.audioArray
-        })
-        this.audioArray = []
-      }
-      //start decode H265
-      this.decode.push(this.videoArray)
-      this.videoArray = []
-      this.previousPes = null
-      return
-    }
     switch (streamType) {
       //h265
       case 36:
