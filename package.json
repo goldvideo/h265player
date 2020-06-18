@@ -1,9 +1,8 @@
 {
-  "name": "goldvideo",
-  "version": "0.0.6",
+  "name": "goldvideo-player",
+  "version": "1.0.1",
   "description": "goldplay-h265player",
-  "main": "dist/goldplay-h265.js",
-  "module": "dist/goldplay-h265.esm.js",
+  "main": "dist/goldplay-h265-sdk.js",
   "directories": {
     "doc": "doc",
     "test": "test"
@@ -17,13 +16,16 @@
     "merge": "",
     "jest": "jest"
   },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/goldvideo/h265player"
   },
   "dependencies": {
     "babel-runtime": "^6.26.0",
-    "demuxer": "file:../demuxer",
+    "demuxer": "^2.1.1",
     "loadjs": "^4.2.0",
     "yuv-buffer": "^1.0.0",
     "yuv-canvas": "^1.2.6"
@@ -70,8 +72,8 @@
     "webworkify-webpack": "^2.1.5"
   },
   "files": [
-    "dist",
-    "src"
+    "dist/goldplay-h265-sdk.js",
+    "dist/goldplay-h265.css"
   ],
   "keywords": [
     "h265",
@@ -79,6 +81,6 @@
     "player",
     "webassmebly"
   ],
-  "author": "lichunping,liuliguo,xubaoyu",
+  "author": "goldvideo",
   "license": "ISC"
 }

@@ -18,7 +18,7 @@ export default {
       babelrc: true,
       presets: [["@babel/env", { modules: false }]],
       runtimeHelpers: true,
-      plugins: ["@babel/transform-runtime"]
+      // plugins: ["@babel/transform-runtime"]
     }),
     // uglify({
     //   output: {
