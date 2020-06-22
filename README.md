@@ -86,7 +86,7 @@ server {
 
 # 源码编译WASM解码库，可选
 
-[decoder_wasm](https://github.com/goldvideo/decoder_wasm)库之前已经编译并复制到 h265player/dist/lib/目录下，你也可以自己编译。
+[decoder_wasm](https://github.com/goldvideo/decoder_wasm)库之前已经编译并复制到 h265player/dist/lib/目录下。你也可以自己编译并替换libffmpeg.js与libffmpeg.wasm文件。
 ```shell
 # 如果想看源码和编译过程，可以查看decoder_wasm模块源码。
 * cd goldvideo ROOT
