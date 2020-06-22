@@ -43,14 +43,14 @@ Firefox (>52)
 ## Nginx配置
 
 ```
-    server {
-        listen       8000;
-        location / {
-            root   <path of goldvideo>/goldvideo;
-            index  index.html index.htm;
-            autoindex on;
-        }
+server {
+    listen       8000;
+    location / {
+        root   <path of goldvideo>/goldvideo;
+        index  index.html index.htm;
+        autoindex on;
     }
+}
 ```
 
 ## 测试页面：
@@ -62,7 +62,7 @@ http://localhost:8000/h265player/demo/demo.html
 # NPM安装直接使用，可选
 
 ```shell
-# 可以直接npm安装构建后的文件，快速查看DEMO
+# 可以直接npm安装构建后的文件，快速运行DEMO
 * npm i goldvideo-player
 * 参见 [goldvideo example](https://github.com/goldvideo/example)
 ```
@@ -70,7 +70,7 @@ http://localhost:8000/h265player/demo/demo.html
 # 源码安装解封装库，可选
 
 ```shell
-# 下载 demuxer 库源码 或者 从 npm 安装 (<b>npm i demuxer</b>)
+# 下载 demuxer 库源码 或者 从 npm 安装 (<b>https://www.npmjs.com/package/demuxer</b>)
 * cd goldvideo ROOT
 * git clone https://github.com/goldvideo/demuxer.git
 * cd demuxer
@@ -80,7 +80,7 @@ http://localhost:8000/h265player/demo/demo.html
 # 构建demuxer模块
 * rollup -c ./rollup.config.js --environment BUILD_MODE:production
 * cd h265player
-# 从本地安装demuxer
+# 从本地安装demuxer，调用本地构建的库
 * npm install ../demuxer
 ```
 
@@ -178,15 +178,14 @@ let options = {
 let player = new GoldPlay(el, options}
 ```
 # 在线demo
-https://omc3i.codesandbox.io/
+  [https://omc3i.codesandbox.io/](https://omc3i.codesandbox.io/)
 
 # 组件扩展
 如何扩展UI组件请参考[文档](./docs/addComponentReadme.md)
-
-[demo](./demo/componentadd.html)
+[组件添加componentadd](./demo/componentadd.html)
 
 # API
-https://goldvideo.github.io/h265player/API/index.html
+[https://goldvideo.github.io/h265player/API/index.html](https://goldvideo.github.io/h265player/API/index.html)
 
 # 开发与维护
-    * github: https://github.com/goldvideo/h265player
+    * github: [https://github.com/goldvideo/h265player](https://github.com/goldvideo/h265player)
