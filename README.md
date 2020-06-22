@@ -64,13 +64,13 @@ http://localhost:8000/h265player/demo/demo.html
 ```shell
 # 可以直接npm安装构建后的文件，快速运行DEMO
 * npm i goldvideo-player
-* 参见 [goldvideo example](https://github.com/goldvideo/example)
 ```
+参见 [goldvideo example](https://github.com/goldvideo/example)
 
 # 源码安装解封装库，可选
 
+下载 demuxer 库源码 或者 从 npm 安装 (https://www.npmjs.com/package/demuxer)
 ```shell
-# 下载 demuxer 库源码 或者 从 npm 安装 (<b>https://www.npmjs.com/package/demuxer</b>)
 * cd goldvideo ROOT
 * git clone https://github.com/goldvideo/demuxer.git
 * cd demuxer
@@ -86,14 +86,14 @@ http://localhost:8000/h265player/demo/demo.html
 
 # 源码编译WASM解码库，可选
 
+[decoder_wasm](https://github.com/goldvideo/decoder_wasm)库之前已经编译并复制到 h265player/dist/lib/目录下，你也可以自己编译。
 ```shell
-# [decoder_wasm](https://github.com/goldvideo/decoder_wasm)库已经编译并复制到 dist/lib/目录下。
 # 如果想看源码和编译过程，可以查看decoder_wasm模块源码。
 * cd goldvideo ROOT
 * git clone http://github.com/goldvideo/decoder_wasm.git
 * cd decoder_wasm
-* wasm安装略微复杂，详细查看[README](https://github.com/goldvideo/decoder_wasm/blob/master/README.md)文件
 ```
+wasm安装略微复杂，详细查看[README](https://github.com/goldvideo/decoder_wasm/blob/master/README.md)文件
 
 # 主要模块结构
 
@@ -170,10 +170,10 @@ let el = doc.querySelector('.play-container')
 //播放器参数
 let options = {
     // 视频播放地址
-    sourceURL: 'http://localhost:9011/gitwork/h265player/data/video2/playlist.m3u8',
+    sourceURL: 'http://localhost:8000/h265player/data/video2/playlist.m3u8',
     type: 'HLS'
     // wasm库地址
-    libPath: 'http://localhost:9011/gitwork/h265player/dist/lib',
+    libPath: 'http://localhost:8000/h265player/dist/lib',
 }
 let player = new GoldPlay(el, options}
 ```
