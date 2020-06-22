@@ -1,57 +1,46 @@
 <img src="./dist/image/goldvideo-logo-w.png" width="250"></img>
 
+[English英文版](./README_en.md)
+
 # 简介
 
 随着视频编码技术的发展，相比H.264, H.265同等画质体积仅为一半、带宽占用省一半、画质更细腻等诸多优势。
 但Web浏览器还不支持H.265的解码播放，因此基于Web Assembly(封装FFmpeg)、JS解封装、Canvas投影以及AudioContext实现Web端的H265播放。
 
 支持主要浏览器及其版本如下：  
-Chrome（>57）  
-Safari (>11)  
-Firefox (>52)  
+Chrome（>57）
+Safari (>11)
+Firefox (>52)
 
 本项目是一个公开的基础可用版本，并不含有具体的业务代码。业务可基于此项目进行具体业务实现。
 ![](./docs/player.png)
 
+# 安装与测试
 
-# 安装与使用
+## 下载源码
 
 ```shell
+# 创建根目录
 * mkdir goldvideo
 * cd goldvideo
-* git clone https://github.com/goldvideo/demuxer.git
-* cd demuxer
-* npm install
-* npm run production
-* cd ..
+# 下载h265player源码, 创建h265player目录
 * git clone https://github.com/goldvideo/h265player.git
 * cd h265player
-
+# 安装依赖
 * npm install
-
-# install demuxer module from local
-* npm install ../demuxer
-# or install demuxer module from online
-* npm i demuxer
-
-* 以下命令根据需要四选一
-* npm run dev # 运行开发环境
-* npm run test # 运行测试环境
-* npm run build # 打包正式环境
-* rollup -c # 打包csj与esm版本
 ```
 
-## 目录结构
+## 工程打包
 
 ```
-├─goldvideo
-│  ├─demuxer
-│  ├─h265player
-│  ├─decoder_wasm
-│  ├─example
+# 以下打包命令根据需要四选一
+* npm run dev    # 运行开发环境
+* npm run test   # 运行测试环境
+* npm run build  # 打包正式环境
+* rollup -c      # 打包csj与esm版本
 ```
 
-## Nginx配置：
+## Nginx配置
 
 ```
     server {
@@ -70,7 +59,53 @@ Firefox (>52)
 http://localhost:8000/h265player/demo/demo.html
 ```
 
+# NPM安装直接使用，可选
+
+```shell
+# 可以直接npm安装构建后的文件，快速查看DEMO
+* npm i goldvideo-player
+* 参见 [goldvideo example](https://github.com/goldvideo/example)
+```
+
+# 源码安装解封装库，可选
+
+```shell
+# 下载 demuxer 库源码 或者 从 npm 安装 (<b>npm i demuxer</b>)
+* cd goldvideo ROOT
+* git clone https://github.com/goldvideo/demuxer.git
+* cd demuxer
+* npm install
+# 打包模块，详情请查看demuxer项目里面的package.json文件
+* npm install --global rollup
+# 构建demuxer模块
+* rollup -c ./rollup.config.js --environment BUILD_MODE:production
+* cd h265player
+# 从本地安装demuxer
+* npm install ../demuxer
+```
+
+# 源码编译WASM解码库，可选
+
+```shell
+# [decoder_wasm](https://github.com/goldvideo/decoder_wasm)库已经编译并复制到 dist/lib/目录下。
+# 如果想看源码和编译过程，可以查看decoder_wasm模块源码。
+* cd goldvideo ROOT
+* git clone http://github.com/goldvideo/decoder_wasm.git
+* cd decoder_wasm
+* wasm安装略微复杂，详细查看[README](https://github.com/goldvideo/decoder_wasm/blob/master/README.md)文件
+```
+
 # 主要模块结构
+
+## 源码目录结构
+
+```
+├─goldvideo
+│  ├─demuxer
+│  ├─h265player
+│  ├─decoder_wasm
+│  ├─example
+```
 
 ## 整体架构图
 ![](./docs/h265player-Architecture.png)
@@ -82,15 +117,15 @@ http://localhost:8000/h265player/demo/demo.html
 
 ## 流程图
 播放器主要流程如下图所示：
-<div align=center>
-<img src="./docs/simple-flowchart.png" width="450" align=center />
+<div align="center">
+<img src="./docs/simple-flowchart.png" width="450" align="center" />
 </div>
 
-具体流程如下：
-
+## 具体流程如下：
 ![](./docs/H265player-flowchart.png)
+
 ## 解封装器
-通过demuxer.js实现媒体数据的解封装，从而获取到独立的视频（H265）数据和音频（AAC）数据。详细信息请参考demuxer.js
+通过JS实现了视频数据的解封装，从而获取到独立的视频（H265）数据和音频（AAC）数据。详细信息请参考demuxer模块：[https://github.com/goldvideo/demuxer](https://github.com/goldvideo/demuxer)。
 
 ## 解码器
 通过ffmpeg实现H265数据的软解码，如果要在浏览器中调用ffmpeg，需要把ffmpeg编译成wasm进行调用，具体ffmpeg编译成wasm过程，可参考[decoder_wasm](https://github.com/goldvideo/decoder_wasm)
@@ -111,37 +146,40 @@ Audio Context的部分音频节点提供了playbackRate属性以实现倍速播�
 为实现变速不变调，项目中，我们使用了一个音频数据处理库[SoundTouchJS](https://github.com/cutterbl/SoundTouchJS)，将处理过的变速不变调的音频数据提供给ScriptProcessorNode。
 
 # 快速开始
-在head标签中添加如下代码
+## 在head标签中添加如下代码
 ```html
 <link rel="stylesheet" href="../dist/goldplay-h265.css">
 <script src="../dist/goldplay-h265-sdk.js"></script>
 <style>
-    .play-container{
+    .play-container {
         width: 800px;
         height: 500px;
     }
 </style>
 ```
-创建一个div，作为播放器的容器
+
+## 创建一个div，作为播放器的容器
 ```html
 <div class="play-container"></div>
 ```
-新建一个GoldPlay实例对象，传入相应参数，就可以实现视频的播放
+
+## 新建一个GoldPlay实例对象，传入相应参数，就可以实现视频的播放
 ```javascript
 //播放器容器
 let el = doc.querySelector('.play-container')
 //播放器参数
 let options = {
-    //视频播放地址
+    // 视频播放地址
     sourceURL: 'http://localhost:9011/gitwork/h265player/data/video2/playlist.m3u8',
     type: 'HLS'
-    //wasm库地址
+    // wasm库地址
     libPath: 'http://localhost:9011/gitwork/h265player/dist/lib',
 }
 let player = new GoldPlay(el, options}
 ```
 # 在线demo
 https://omc3i.codesandbox.io/
+
 # 组件扩展
 如何扩展UI组件请参考[文档](./docs/addComponentReadme.md)
 
