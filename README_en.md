@@ -87,7 +87,7 @@ you can download demuxer library source from github or install from npm(https://
 
 # Compile `WASM` module from source. [optional]
 
-[decoder_wasm](https://github.com/goldvideo/decoder_wasm) has been compiled and copied to dist/lib/, you can compiling by self.
+[decoder_wasm](https://github.com/goldvideo/decoder_wasm) has been compiled and copied to dist/lib/ before. You can compile it and replace the files(libffmpeg.js, libffmpeg.wasm).
 ```shell
 * cd goldvideo ROOT
 * git clone http://github.com/goldvideo/decoder_wasm.git
