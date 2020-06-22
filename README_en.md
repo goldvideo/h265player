@@ -43,14 +43,14 @@ This project is a publicly basic version and does not contain business logic cod
 ## Nginx configuration
 
 ```
-    server {
-        listen       8000;
-        location / {
-            root   <path of goldvideo>/goldvideo;
-            index  index.html index.htm;
-            autoindex on;
-        }
+server {
+    listen       8000;
+    location / {
+        root   <path of goldvideo>/goldvideo;
+        index  index.html index.htm;
+        autoindex on;
     }
+}
 ```
 
 ## Run test：
@@ -70,7 +70,7 @@ http://localhost:8000/h265player/demo/demo.html
 # Install and build `demuxer` from source code. [optional]
 
 ```shell
-# download demuxer library source from github or install from npm(<b>npm i demuxer</b>)
+# download demuxer library source from github or install from npm(<b>https://www.npmjs.com/package/demuxer</b>)
 * cd goldvideo ROOT
 * git clone https://github.com/goldvideo/demuxer.git
 * cd demuxer
@@ -183,15 +183,14 @@ let player = new GoldPlay(el, options}
 ```
 
 # Online demo
-https://omc3i.codesandbox.io/
+  [https://omc3i.codesandbox.io/](https://omc3i.codesandbox.io/)
 
 # Component expand
 How to add the new UI component? [addComponentReadme](./docs/addComponentReadme.md)
-
-[demo](./demo/componentadd.html)
+[componentadd](./demo/componentadd.html)
 
 # APIs
-https://goldvideo.github.io/h265player/API/index.html
+[https://goldvideo.github.io/h265player/API/index.html](https://goldvideo.github.io/h265player/API/index.html)
 
 # Developer
-    * github: https://github.com/goldvideo/h265player
+    * github: [https://github.com/goldvideo/h265player](https://github.com/goldvideo/h265player)
