@@ -54,10 +54,10 @@ server {
 ```
 
 ## 测试页面：
+安装完成，重启nginx并访问demo地址，你就可以看到播放器画面。
+[http://localhost:8000/h265player/demo/demo.html](http://localhost:8000/h265player/demo/demo.html)
 
-```
-http://localhost:8000/h265player/demo/demo.html
-```
+    想多详情，可以接着往下看。
 
 # NPM安装直接使用，可选
 
@@ -71,7 +71,7 @@ http://localhost:8000/h265player/demo/demo.html
 
 下载 demuxer 库源码 或者 从 npm 安装 (https://www.npmjs.com/package/demuxer)
 ```shell
-* cd goldvideo ROOT
+* cd goldvideo
 * git clone https://github.com/goldvideo/demuxer.git
 * cd demuxer
 * npm install

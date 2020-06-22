@@ -54,10 +54,11 @@ server {
 ```
 
 ## Run test：
+finished!
+restart nginx server now and visit demo page, you can see the player.
+[http://localhost:8000/h265player/demo/demo.html](http://localhost:8000/h265player/demo/demo.html)
 
-```
-http://localhost:8000/h265player/demo/demo.html
-```
+    More details, then go down.
 
 # NPM quick install. [optional]
 
@@ -71,7 +72,7 @@ see [goldvideo example](https://github.com/goldvideo/example)
 
 you can download demuxer library source from github or install from npm(https://www.npmjs.com/package/demuxer)
 ```shell
-* cd goldvideo ROOT
+* cd goldvideo
 * git clone https://github.com/goldvideo/demuxer.git
 * cd demuxer
 * npm install
