@@ -64,18 +64,18 @@ http://localhost:8000/h265player/demo/demo.html
 ```shell
 # you can using npm install to run DEMO quickly
 * npm i goldvideo-player
-* see [goldvideo example](https://github.com/goldvideo/example)
 ```
+see [goldvideo example](https://github.com/goldvideo/example)
 
 # Install and build `demuxer` from source code. [optional]
 
+you can download demuxer library source from github or install from npm(https://www.npmjs.com/package/demuxer)
 ```shell
-# download demuxer library source from github or install from npm(<b>https://www.npmjs.com/package/demuxer</b>)
 * cd goldvideo ROOT
 * git clone https://github.com/goldvideo/demuxer.git
 * cd demuxer
 * npm install
-# build the module, you can see the pageage.json of [demuxer](https://github.com/goldvideo/demuxer) also.
+# build the module, you can see the pageage.json of demuxer
 * npm install --global rollup
 # build demuxer module by rollup
 * rollup -c ./rollup.config.js --environment BUILD_MODE:production
@@ -86,13 +86,13 @@ http://localhost:8000/h265player/demo/demo.html
 
 # Compile `WASM` module from source. [optional]
 
+[decoder_wasm](https://github.com/goldvideo/decoder_wasm) has been compiled and copied to dist/lib/, you can compiling by self.
 ```shell
-# [decoder_wasm](https://github.com/goldvideo/decoder_wasm) has been compiled and copied to dist/lib/
 * cd goldvideo ROOT
 * git clone http://github.com/goldvideo/decoder_wasm.git
 * cd decoder_wasm
-* compiling step detail to see [README](https://github.com/goldvideo/decoder_wasm/blob/master/README.md) of wasm module.
 ```
+compiling step detail to see [README](https://github.com/goldvideo/decoder_wasm/blob/master/README.md) of wasm module.
 
 # Module Contruction
 
@@ -174,10 +174,10 @@ let el = doc.querySelector('.play-container')
 // set parameters for Player
 let options = {
     // playlist address
-    sourceURL: 'http://localhost:9011/gitwork/h265player/data/video2/playlist.m3u8',
+    sourceURL: 'http://localhost:8000/h265player/data/video2/playlist.m3u8',
     type: 'HLS'
     // wasm address
-    libPath: 'http://localhost:9011/gitwork/h265player/dist/lib',
+    libPath: 'http://localhost:8000/h265player/dist/lib',
 }
 let player = new GoldPlay(el, options}
 ```
