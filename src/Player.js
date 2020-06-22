@@ -388,8 +388,7 @@ class Player extends BaseClass {
       this.el.removeChild(this.$container)
       delete this.$container
     }
-    this.decodeController.destroy()
-    this.demuxController.destroy()
+    this.processController.destroy()
     this.loaderController.destroy()
   }
 

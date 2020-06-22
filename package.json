@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "babel-runtime": "^6.26.0",
-    "demuxer": "^2.1.1",
+    "demuxer": "file:../demuxer",
     "loadjs": "^4.2.0",
     "yuv-buffer": "^1.0.0",
     "yuv-canvas": "^1.2.6"

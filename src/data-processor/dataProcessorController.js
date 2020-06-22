@@ -130,4 +130,9 @@ export default class DataProcessorController extends BaseClass {
   onResetEnd() {
     this.events.emit(Events.ProcessorResetEnd)
   }
+  destroy() {
+    if (this.processor) {
+      this.processor.terminate()
+    }
+  }
 }
