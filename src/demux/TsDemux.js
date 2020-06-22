@@ -25,7 +25,6 @@ class TsDemux {
   }
   init() {
     try {
-
       this.demuxer = new TSDemux({
         enableWorker: false,
         debug: false,
@@ -33,10 +32,17 @@ class TsDemux {
       })
 
       this.demuxer.on(DemuxerEvents.DEMUX_DATA, event => {
-        this.dataArray.push(event)
+        if (event instanceof Array) {
+          this.dataArray.push(event)
+          this.demuxed(this.dataArray)
+          this.dataArray = []
+        } else {
+          this.dataArray.push(event)
+        }
       })
 
       this.demuxer.on(DemuxerEvents.DONE, event => {
+        let pes = {}
         this.demuxed(this.dataArray)
         this.dataArray = []
         //one ts demux finished
@@ -70,8 +76,9 @@ class TsDemux {
         }
         //start decode H265
         this.decode.push(this.videoArray)
-            
-        })
+        this.videoArray = []
+        this.previousPes = null
+      })
     } catch (error) {
       console.error('init demuxer failed.')
     }

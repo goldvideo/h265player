@@ -53,7 +53,8 @@ const Config = {
 }
 
 const BUFFER = {
-  maxDuration: 15,
+  //单位秒
+  maxDuration: 30,
   maxSize: 1024 * 1000 * 1000,
   maxRetryCount: 3
 }
