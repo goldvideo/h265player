@@ -40,7 +40,7 @@ Firefox (>52)
 * rollup -c      # 打包csj与esm版本
 ```
 
-## Nginx配置
+## Nginx配置(或者其他Server)
 
 ```
 server {
@@ -54,18 +54,19 @@ server {
 ```
 
 ## 测试页面：
-安装完成，重启nginx并访问demo地址，你就可以看到播放器画面。
+重启nginx并访问demo地址，就能看到播放器画面，如果可以能正常播放视频时就表示成功了。
 [http://localhost:8000/h265player/demo/demo.html](http://localhost:8000/h265player/demo/demo.html)
+如果遇到错误，请通过检查路径配置以及资源是否加载完成等。您也可以给我们留言反馈问题，我们将尽快回复。
 
     以上就完成了基本安装，想了解更多详情，可以接着往下看。
 
-# NPM安装example直接使用，可选
+# 安装NPM包，参照example直接使用，可选
 
 ```shell
 # 可以直接npm安装构建后的文件，快速运行DEMO
 * npm i goldvideo-player
 ```
-参见 [goldvideo example](https://github.com/goldvideo/example)
+    具体参见 [goldvideo example](https://github.com/goldvideo/example)
 
 # 源码安装解封装库demuxer，可选
 
