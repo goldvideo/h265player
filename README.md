@@ -33,7 +33,7 @@ Firefox (>52)
 ## 工程打包
 
 ```
-# 以下打包命令根据需要四选一
+# 以下打包命令任选一
 * npm run dev    # 运行开发环境
 * npm run test   # 运行测试环境
 * npm run build  # 打包正式环境
@@ -57,9 +57,9 @@ server {
 安装完成，重启nginx并访问demo地址，你就可以看到播放器画面。
 [http://localhost:8000/h265player/demo/demo.html](http://localhost:8000/h265player/demo/demo.html)
 
-    想多详情，可以接着往下看。
+    以上就完成了基本安装，想了解更多详情，可以接着往下看。
 
-# NPM安装直接使用，可选
+# NPM安装example直接使用，可选
 
 ```shell
 # 可以直接npm安装构建后的文件，快速运行DEMO
@@ -67,7 +67,7 @@ server {
 ```
 参见 [goldvideo example](https://github.com/goldvideo/example)
 
-# 源码安装解封装库，可选
+# 源码安装解封装库demuxer，可选
 
 下载 demuxer 库源码 或者 从 npm 安装 (https://www.npmjs.com/package/demuxer)
 ```shell
