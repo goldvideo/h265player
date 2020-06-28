@@ -1,6 +1,6 @@
 {
   "name": "goldvideo-player",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "goldplay-h265player",
   "main": "dist/goldplay-h265-sdk.js",
   "directories": {
