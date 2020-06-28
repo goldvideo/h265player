@@ -31,18 +31,17 @@ This project is a publicly basic version and does not contain business logic cod
 ```
 
 ## Contruction
-
-```
+```shell
 # choose one to build
 * npm run dev
-* npm run test
-* npm run build
-* rollup -c      # build csj and esm version
+# npm run test
+# npm run build
+# rollup -c      # build csj and esm version
 ```
 
-## Nginx configuration
+## Nginx configuration(Or other Server)
 
-```
+```javascript
 server {
     listen       8000;
     location / {
@@ -53,20 +52,21 @@ server {
 }
 ```
 
-## Run test：
-finished!
-restart nginx server now and visit demo page, you can see the player.
+## Run test
+restart nginx server and visit demo page, you can see the player.
 [http://localhost:8000/h265player/demo/demo.html](http://localhost:8000/h265player/demo/demo.html)
+if you have seen the player. congratulations! 
+if you can't play the video, you need to check the source path and the error of control bar. please feedback the problem the you have met, we'll  respond to you quickly.
 
     More details, then go down.
 
 # NPM quick install. [optional]
 
 ```shell
-# you can using npm install to run DEMO quickly
+# you can using npm to install and run the DEMO simply.
 * npm i goldvideo-player
 ```
-see [goldvideo example](https://github.com/goldvideo/example)
+see more [https://github.com/goldvideo/example](https://github.com/goldvideo/example)
 
 # Install and build `demuxer` from source code. [optional]
 
