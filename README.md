@@ -32,7 +32,7 @@ Firefox (>52)
 
 ## 工程打包
 
-```
+```shell
 # 以下打包命令任选一
 * npm run dev    # 运行开发环境
 * npm run test   # 运行测试环境
@@ -42,7 +42,7 @@ Firefox (>52)
 
 ## Nginx配置(或者其他Server)
 
-```
+```javascript
 server {
     listen       8000;
     location / {
@@ -53,22 +53,23 @@ server {
 }
 ```
 
-## 测试页面：
-重启nginx并访问demo地址，就能看到播放器画面，如果可以能正常播放视频时就表示成功了。
-[http://localhost:8000/h265player/demo/demo.html](http://localhost:8000/h265player/demo/demo.html)
-如果遇到错误，请通过检查路径配置以及资源是否加载完成等。您也可以给我们留言反馈问题，我们将尽快回复。
+ ## 测试页面
+ 重启nginx并访问demo地址，就能看到播放器画面，如果可以能正常播放视频时就表示成功了。
+ [http://localhost:8000/h265player/demo/demo.html](http://localhost:8000/h265player/demo/demo.html)
+
+ 如果遇到错误，请通过检查路径配置以及资源是否加载完成等。您也可以给我们留言反馈问题，我们将尽快回复。
 
     以上就完成了基本安装，想了解更多详情，可以接着往下看。
 
-# 安装NPM包，参照example直接使用，可选
+# 安装NPM包，参照example快速运行例子[可选]
 
 ```shell
 # 可以直接npm安装构建后的文件，快速运行DEMO
 * npm i goldvideo-player
 ```
-    具体参见 [goldvideo example](https://github.com/goldvideo/example)
+  具体参见 [goldvideo example](https://github.com/goldvideo/example)
 
-# 源码安装解封装库demuxer，可选
+# 源码安装解封装库demuxer[可选]
 
 下载 demuxer 库源码 或者 从 npm 安装 (https://www.npmjs.com/package/demuxer)
 ```shell
@@ -85,7 +86,7 @@ server {
 * npm install ../demuxer
 ```
 
-# 源码编译WASM解码库，可选
+# 源码编译WASM解码库[可选]
 
 [decoder_wasm](https://github.com/goldvideo/decoder_wasm)库之前已经编译并复制到 h265player/dist/lib/目录下。你也可以自己编译并替换libffmpeg.js与libffmpeg.wasm文件。
 ```shell
@@ -189,4 +190,4 @@ let player = new GoldPlay(el, options}
 [https://goldvideo.github.io/h265player/API/index.html](https://goldvideo.github.io/h265player/API/index.html)
 
 # 开发与维护
-    * github: [https://github.com/goldvideo/h265player](https://github.com/goldvideo/h265player)
+   * github: [https://github.com/goldvideo/h265player](https://github.com/goldvideo/h265player)
