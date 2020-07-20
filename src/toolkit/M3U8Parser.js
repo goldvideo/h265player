@@ -34,7 +34,7 @@ const matchers = {
   targetDuration: 'TARGETDURATION',
   mediaSequence: 'MEDIA-SEQUENCE',
   discontinuity: 'DISCONTINUITY',
-  steamInf: 'STREAM-INF',
+  streamInf: 'STREAM-INF',
   isComment: (line) => line && line[0] === '#' && !(line.startsWith(matchers.tagPrefix)),
   isBlank: (line) => line === '',
   canStrip: (line) => matchers.isBlank(line) || matchers.isComment(line)
