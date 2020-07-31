@@ -88,7 +88,7 @@ export default class ImagePlayer extends BaseClass {
       }
       this.screen.drawFrame(image)
       this.currentTime = image.pts
-      this.events.emit(Events.ImagePlayerRenderEnd, time)
+      this.events.emit(Events.ImagePlayerRenderEnd, time, image.duration)
       return image
     } else {
       if (this.maxPTS && time >= this.maxPTS + this.fragDuration) {

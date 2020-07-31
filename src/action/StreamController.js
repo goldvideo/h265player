@@ -153,6 +153,10 @@ export default class StreamController extends BaseClass {
     if (this.player.reseting) {
       return
     }
+    //no audio data
+    if (!dataArray.length) {
+      this.audioPlayer.send({})
+    }
     dataArray.forEach((data) => {
       if (data.PTS >= this.player.currentTime || data.audioEnd) {
         if (!this.player.receiveAACTime && this.player.seeking) {

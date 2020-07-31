@@ -10,6 +10,7 @@ import JMuxer from '../lib/jmuxer.js'
 import Events from '../config/EventsConfig'
 import AudioContextPlayer from './AudioContextPlayer'
 export default class AudioPlayer extends BaseClass {
+  need = true
   first = false
   offset = 0
   currentPTS = 0
@@ -152,6 +153,12 @@ export default class AudioPlayer extends BaseClass {
     return this.player.paused
   }
   send(data) {
+    if (!data.PTS) {
+      this.need = false;
+      this.events.emit(Events.AudioPlayerDataReady);
+      return;
+    } 
+    this.need = true;
     if (!this.audioDecoder) {
       this.logger.error('send', 'audioDecoder is:', this.audioDecoder)
       return
