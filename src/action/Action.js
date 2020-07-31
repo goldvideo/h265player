@@ -35,8 +35,8 @@ export default class Action extends BaseClass {
     this.events.on(Events.LoadDataSeek, (data, timer) => {
       this.onSeek(data, timer)
     })
-    this.events.on(Events.ImagePlayerRenderEnd, (time) => {
-      this.onRenderEnd(time)
+    this.events.on(Events.ImagePlayerRenderEnd, (time, gap) => {
+      this.onRenderEnd(time, gap)
     })
     this.events.on(Events.ImagePlayerWait, () => {
       this.audioPlayer.pause()
@@ -54,6 +54,10 @@ export default class Action extends BaseClass {
     let vOffset = imagePlayer.offset
     let minTime = Math.min(aOffset, vOffset)
     let maxTime = Math.max(aOffset, vOffset)
+    if (!audioPlayer.need) {
+      minTime = vOffset
+      maxTime = vOffset
+    }
     let playbackRate = player.playbackRate
     if (player.seeking) {
       player.seeking = false
@@ -79,7 +83,7 @@ export default class Action extends BaseClass {
       return
     }
     //only play audio
-    if (time >= aOffset && time <= vOffset) {
+    if (audioPlayer.need && time >= aOffset && time <= vOffset) {
       this.events.once(Events.AudioPlayerPlaySuccess, () => {
         imagePlayer.render(vOffset)
       })
@@ -88,7 +92,7 @@ export default class Action extends BaseClass {
       return
     }
     //only play image
-    if (time >= vOffset && time <= aOffset) {
+    if (time >= vOffset && (!audioPlayer.need || time <= aOffset)) {
       imagePlayer.render(time)
       return
     }
@@ -175,7 +179,7 @@ export default class Action extends BaseClass {
     clearTimeout(this.drawFrameHanlder)
     this.drawFrameHanlder = null
   }
-  onRenderEnd() {
+  onRenderEnd(time, gap) {
     if (this.player.seekTime) {
       this.logger.info('onRenderEnd', 'seektoRenderTime:', Date.now() - this.player.seekTime)
       this.player.seekTime = null
@@ -190,6 +194,11 @@ export default class Action extends BaseClass {
     let fragDuration = imagePlayer.fragDuration
     let delay = aCurrentTime - vCurrentTime
     let nextTime = 0
+    //no audio
+    if (!audioPlayer.need) {
+      this.drawNext(time + gap, Math.ceil(gap / playbackRate))
+      return
+    }
     //only play image
     if (vCurrentTime < aOffset) {
       this.drawNext(vCurrentTime + fragDuration * playbackRate, fragDuration)
