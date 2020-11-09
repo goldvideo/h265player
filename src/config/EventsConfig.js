@@ -46,7 +46,8 @@ const Events = {
   LoaderUpdateSpeed: 'Loader.updateSpeed',
   LoaderLoadFile: 'Loader.loadFile',
   LoaderPlayListLoaded: 'Loader.playlistLoaded',
-
+  LastTSFileLoaded: 'Loader.lastTSFileLoaded',
+  LoaderNextPlayListLoaded: 'Loader.loaderNextPlayListLoaded',
   AudioPlayerReady: 'AudioPlayer.MSEReady',
   AudioPlayerDataReady: 'AudioPlayer.dataReady',
   AudioPlayerWait: 'AudioPlayer.wait',
