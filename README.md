@@ -63,6 +63,9 @@ server {
 
 # 安装NPM包，参照example快速运行例子[可选]
 
+[![npm version](https://badge.fury.io/js/goldvideo-player.svg)](https://www.npmjs.com/package/goldvideo-player)
+[![Downloads](https://img.shields.io/npm/dm/goldvideo-player.svg)](https://www.npmjs.com/package/goldvideo-player)
+
 ```shell
 # 可以直接npm安装构建后的文件，快速运行DEMO
 * npm i goldvideo-player
