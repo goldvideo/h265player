@@ -191,3 +191,6 @@ let player = new GoldPlay(el, options}
 
 # 开发与维护
    * github: [https://github.com/goldvideo/h265player](https://github.com/goldvideo/h265player)
+
+   * 扫描二维码进群
+   <div align=center><img src="./docs/wechart.jpg" width=200px height=200px></div>
