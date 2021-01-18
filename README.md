@@ -200,3 +200,6 @@ let player = new GoldPlay(el, options}
    
    * Slack讨论组
    https://join.slack.com/t/goldvideo/shared_invite/zt-l0123zsk-jvHxsAQ8bCRl0~4QLNBEeQ
+
+   * 如果您想参与贡献代码，我们非常欢迎。
+    留下github账号，我们来邀请加入。或者fork分支，再pull request。
