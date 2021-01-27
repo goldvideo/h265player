@@ -53,7 +53,7 @@ const Config = {
 }
 
 const BUFFER = {
-  //单位秒
+  //单位秒，loader加载ts片段缓存
   maxDuration: 30,
   maxSize: 1024 * 1000 * 1000,
   maxRetryCount: 3

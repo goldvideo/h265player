@@ -26,6 +26,7 @@
   <div id="PlayerWrapper">
     <h3>H.265 Player <b>在线播放器Demo1</b><em class="demo1" id="Demo1">DEMO</em></h3>
     <div class="play-container"></div>
+    <input type="button" id="change" value=change/>
   </div>
   <br clear="all">
   <br>
@@ -54,7 +55,14 @@
         type: 'HLS',
         libPath: Config.libPath,
         playBackRate: 1,
+        rateList: [
+          {"url":"http://localhost:9011/gitwork/goldplay/h265player/data/video1/playlist.m3u8","id":51,"name":"720P","value":"720"},
+           {"url":"http://localhost:9011/gitwork/goldplay/h265player/data/video3/playlist.m3u8","id":51,"name":"高清","value":"600"}
+        ]
       })
+      document.querySelector('#change').onclick = function(){
+        player.changeSrc('http://localhost:9011/gitwork/goldplay/h265player/data/video1/playlist.m3u8')
+      }
       // player.destroy()
     })(window, document)
   </script>
