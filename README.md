@@ -197,3 +197,9 @@ let player = new GoldPlay(el, options}
 
    * 扫描二维码进群
    <div align=center><img src="./docs/wechart.jpg" width=200px height=200px></div>
+   
+   * Slack讨论组
+   https://join.slack.com/t/goldvideo/shared_invite/zt-l0123zsk-jvHxsAQ8bCRl0~4QLNBEeQ
+
+   * 如果您想参与贡献代码，我们非常欢迎。
+    留下github账号，我们来邀请加入。或者fork分支，再pull request。
