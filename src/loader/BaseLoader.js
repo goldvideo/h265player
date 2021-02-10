@@ -10,23 +10,23 @@
 import BaseClass from '../base/BaseClass.js'
 
 class BaseLoader extends BaseClass {
-  loadData = null
+  dataManage = null
   sourceURL = ''
   constructor() {
     super()
   }
   init() {}
 
-  setLoadData(loadData) {
-    this.loadData = loadData
+  setDataManage(dataManage) {
+    this.dataManage = dataManage
   }
 
   setSourceURL(url) {
     this.sourceURL = url
   }
 
-  getLoadData() {
-    return this.getLoadData
+  getDataManage() {
+    return this.getDataManage
   }
 
   getSourceURL() {

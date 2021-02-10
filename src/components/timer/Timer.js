@@ -37,7 +37,7 @@ class Timer extends BaseComponent {
 
   bindEvent() {
     this.events.on(Events.LoaderPlayListLoaded, loader => {
-      this.setTotalTime(loader.loadData)
+      this.setTotalTime(loader.dataManage)
     })
   }
 

@@ -53,7 +53,7 @@ const Config = {
 }
 
 const BUFFER = {
-  //单位秒
+  // 单位秒
   maxDuration: 30,
   maxSize: 1024 * 1000 * 1000,
   maxRetryCount: 3
@@ -64,6 +64,11 @@ const ERROR_STATE = {
   fail: 200,
   pending: 300,
   reject: 400
+}
+
+const MP4_CONFIG = {
+  // 1024 * 1024 * 2
+  sliceSize: 2097152
 }
 
 const ERROR_TYPE = {
@@ -94,6 +99,7 @@ const READY = {
 const LIBFILES = ['ADTS.js', 'mux.js']
 export {
   Config,
+  MP4_CONFIG,
   ERROR_STATE,
   ERROR_TYPE,
   BUFFER,

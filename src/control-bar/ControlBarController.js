@@ -16,7 +16,7 @@ const cssName = CSSConfig
 
 class ControlBarController extends BaseController {
   player = null
-  loadData = null
+  dataManage = null
 
   options = {
     cssName: cssName
@@ -26,7 +26,7 @@ class ControlBarController extends BaseController {
     super(options)
     this.options = Object.assign(this.options, options)
     this.player = this.options.player
-    this.loadData = this.player.loadData
+    this.dataManage = this.player.dataManage
     this.componentsController = this.player.componentsController
     this.$screenContainer = this.player.$screenContainer
     this.initComponents()
@@ -39,7 +39,7 @@ class ControlBarController extends BaseController {
   }
 
   run() {
-    this.timer.setTotalTime(this.loadData)
+    this.timer.setTotalTime(this.dataManage)
     this.drawLayout()
     this.bindEvent()
     if (!this.player.autoPlay) {
@@ -139,7 +139,7 @@ class ControlBarController extends BaseController {
       this.waitingBar.hideWaiting()
     })
     this.events.on(Events.PlayerOnSeek, time => {
-      let duration = this.loadData.sourceData.duration
+      let duration = this.dataManage.sourceData.duration
       if (time < duration * 1000) {
         this.events.emit(Events.ControlBarPauseLoading)
       }
