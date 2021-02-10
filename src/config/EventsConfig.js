@@ -33,11 +33,11 @@ const Events = {
   ControlBarPause: 'ControlBar.onPause',
   ControlBarPauseLoading: 'ControlBar.onPauseLoading',
 
-  LoadDataReadBufferByNo: 'LoadData.readBufferByNo',
-  LoadDataReadBuffer: 'LoadData.readBuffer',
-  LoadDataRead: 'LoadData.onRead',
-  LoadDataSeek: 'LoadData.onSeek',
-  LoadDataFirstLoaded: 'LoadData.onFirstLoaded',
+  DataManageReadBufferByNo: 'DataManage.readBufferByNo',
+  DataManageReadBuffer: 'DataManage.readBuffer',
+  DataManageRead: 'DataManage.onRead',
+  DataManageSeek: 'DataManage.onSeek',
+  DataManageFirstLoaded: 'DataManage.onFirstLoaded',
   
   LoaderPlayListStart: 'Loader.playlistStart',
   LoaderLoading: 'Loader.onLoading',
@@ -46,6 +46,7 @@ const Events = {
   LoaderUpdateSpeed: 'Loader.updateSpeed',
   LoaderLoadFile: 'Loader.loadFile',
   LoaderPlayListLoaded: 'Loader.playlistLoaded',
+  LoaderMP4Loaded: 'loader.mp4Loaded',
 
   AudioPlayerReady: 'AudioPlayer.MSEReady',
   AudioPlayerDataReady: 'AudioPlayer.dataReady',

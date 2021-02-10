@@ -19,7 +19,7 @@ export default class Action extends BaseClass {
     }
     this.audioPlayer = options.audioPlayer
     this.imagePlayer = options.imagePlayer
-    this.loadData = options.loadData
+    this.dataManage = options.dataManage
     this.bindEvent()
   }
   bindEvent() {
@@ -32,7 +32,7 @@ export default class Action extends BaseClass {
     this.events.on(Events.PlayerResetReady, () => {
       this.onResetReady()
     })
-    this.events.on(Events.LoadDataSeek, (data, timer) => {
+    this.events.on(Events.DataManageSeek, (data, timer) => {
       this.onSeek(data, timer)
     })
     this.events.on(Events.ImagePlayerRenderEnd, (time, gap) => {
@@ -160,7 +160,7 @@ export default class Action extends BaseClass {
       this.events.emit(Events.DataProcessorReady)
     }
     if (this.player.seeking) {
-      this.player.loadData.seekTime(this.player.currentTime / 1000)
+      this.player.dataManage.seekTime(this.player.currentTime / 1000)
     }
   }
   onSeek(data, timer) {
