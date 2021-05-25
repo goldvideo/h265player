@@ -25,7 +25,7 @@ class LoaderController extends BaseController {
   type = 'HLS'
   options = null
   dataController = null
-
+  segmentsStartIndex = 0
   constructor(type, options) {
     super()
     this.type = type || this.type
@@ -62,9 +62,12 @@ class LoaderController extends BaseController {
     this.events.on(Events.LoaderLoadFile, (segment, type, time) => {
       this.exeLoader.loadFile(segment, type, time)
     })
+    this.events.on(Events.LastTSFileLoaded, () => {
+      this.loadPlaylist(null, 'next')
+    })
   }
 
-  loadPlaylist(callback) {
+  loadPlaylist(callback, type) {
     this.exeLoader.loadPlaylist( (data) => {
       if (!data) {
         this.logger.error('run', 'start load m3u8', 'data:', data)
@@ -72,8 +75,14 @@ class LoaderController extends BaseController {
       }
       this.dataController.setLoadDataSourceData(this.exeLoader.getSourceData())
       this.dataController.setLoadDataSegmentPool(this.exeLoader.getSegmentPool())
-      this.state = state.LOADED_PLAYLIST
-      this.events.emit(Events.LoaderPlayListLoaded, this)
+      if(type === 'next') {
+        this.events.emit(Events.LoaderNextPlayListLoaded, this.segmentsStartIndex, data.segments.length, this.exeLoader.getSourceData().duration)
+        this.segmentsStartIndex = data.segments.length + this.segmentsStartIndex
+      } else {
+        this.state = state.LOADED_PLAYLIST
+        this.events.emit(Events.LoaderPlayListLoaded, this)
+        this.segmentsStartIndex = data.segments.length + 1
+      } 
       if (typeof callback === 'function') {
         callback.call(this, data)
       }
