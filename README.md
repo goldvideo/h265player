@@ -195,8 +195,8 @@ let player = new GoldPlay(el, options}
 # 开发与维护
    * github: [https://github.com/goldvideo/h265player](https://github.com/goldvideo/h265player)
 
-   * 扫描二维码进群
-   <div align=center><img src="./docs/wechat.jpg" width=200px></div>
+   * 添加微信入群  
+    liu635647
    
    * Slack讨论组
    https://join.slack.com/t/goldvideo/shared_invite/zt-l0123zsk-jvHxsAQ8bCRl0~4QLNBEeQ
