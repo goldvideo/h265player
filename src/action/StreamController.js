@@ -12,19 +12,19 @@ export default class StreamController extends BaseClass {
   retryTime = 0
   dataReady = { audioReady: false, imageReady: false }
   hasInit = false
-  loadDataStatus = 'loading'
+  dataManageStatus = 'loading'
   duration = 0
   tsNumber = 0
   constructor(options) {
     super(options)
-    this.loadData = options.loadData
+    this.dataManage = options.dataManage
     this.imagePlayer = options.imagePlayer
     this.audioPlayer = options.audioPlayer
     this.player = options.player
     this.bindEvent()
   }
   bindEvent() {
-    this.events.on(Events.LoadDataRead, (data) => {
+    this.events.on(Events.DataManageRead, (data) => {
       this.onRead(data)
     })
     this.events.on(Events.DemuxVideo, (data, isLast) => {
@@ -63,14 +63,14 @@ export default class StreamController extends BaseClass {
     this.events.on(Events.PlayerWait, () => {
       this.logger.warn('player status wait')
       this.player.status = 'wait'
-      if (this.loadDataStatus === 'loadend') {
-        this.loadDataStatus = 'loading'
+      if (this.dataManageStatus === 'loadend') {
+        this.dataManageStatus = 'loading'
         this.loadNext()
       }
     })
     this.events.on(Events.PlayerLoadNext, () => {
-      if (this.loadDataStatus === 'loadend') {
-        this.loadDataStatus = 'loading'
+      if (this.dataManageStatus === 'loadend') {
+        this.dataManageStatus = 'loading'
         this.loadNext()
       }
     })
@@ -102,13 +102,13 @@ export default class StreamController extends BaseClass {
   reset() {
     this.dataReady = { audioReady: false, imageReady: false }
     this.currentIndex = null
-    this.loadDataStatus = 'loading'
+    this.dataManageStatus = 'loading'
   }
   startLoad(index) {
     this.logger.info('startLoad', 'index:', index)
     this.currentIndex = index
     this.player.currentIndex = index
-    this.events.emit(Events.LoadDataReadBufferByNo, index)
+    this.events.emit(Events.DataManageReadBufferByNo, index)
   }
   loadNext() {
     if (this.player.reseting) {
@@ -121,7 +121,7 @@ export default class StreamController extends BaseClass {
     this.currentIndex += 1
     this.player.currentIndex = this.currentIndex
     this.logger.info('loadNext', 'load next ts', 'tsno:', this.currentIndex)
-    this.events.emit(Events.LoadDataReadBufferByNo, this.currentIndex)
+    this.events.emit(Events.DataManageReadBufferByNo, this.currentIndex)
 
   }
   onDecoded(dataArray) {
@@ -146,7 +146,7 @@ export default class StreamController extends BaseClass {
       this.loadNext()
       return
     }
-    this.loadDataStatus = 'loadend'
+    this.dataManageStatus = 'loadend'
     this.logger.info('onAppendEnd', 'load ts stop')
   }
   onAACDemuxed(dataArray) {

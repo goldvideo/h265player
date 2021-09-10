@@ -6,63 +6,99 @@
  * @author Jarry
  */
 
-import LoadData from './LoadData'
+import HLSDataManage from './HLSDataManage'
+import MP4DataManage from './MP4DataManage'
 import BaseController from '../base/BaseController'
 
 export class DataController extends BaseController {
-  loadData = null
+  type = null
+  dataManage = null
+  hlsDataManage = null
+  mp4DataManage = null
   constructor(options) {
     super()
     this.options = options
+    this.type = this.options.type || 'HLS'
   }
 
-  setLoadData(...args) {
-    this.loadData = new LoadData(...args)
+  setDataManage(options) {
+    switch (options.type.toUpperCase()) {
+      case 'HLS':
+        this.setHLSDataManage(options)
+        this.dataManage = this.hlsDataManage
+        break
+      case 'MP4':
+        this.setMP4DataManage(options)
+        this.dataManage = this.mp4DataManage
+        break
+    }
   }
 
-  getLoadData() {
-    return this.loadData
+  setHLSDataManage(...args) {
+    this.hlsDataManage = new HLSDataManage(...args)
   }
 
-  getLoadDataBufferPool() {
-    return this.loadData.bufferPool
+  setMP4DataManage(...args) {
+    this.mp4DataManage = new MP4DataManage(...args)
   }
 
-  setLoadDataSourceData(sourceData) {
-    this.loadData.setSourceData(sourceData)
+  getHLSDataManage(...args) {
+    if (this.hlsDataManage == null) {
+      this.setHLSDataManage(args)
+    }
+    return this.hlsDataManage
   }
 
-  setLoadDataSegmentPool(segmentPool) {
-    this.loadData.setSegmentPool(segmentPool)
+  getMP4DataManage(...args) {
+    if (this.mp4DataManage == null) {
+      this.mp4DataManage(args)
+    }
+    return this.mp4DataManage
+  }
+
+  getMP4BufferPool() {
+    return this.mp4DataManage.bufferPool
+  }
+
+  getHLSBufferPool() {
+    return this.hlsDataManage.bufferPool
+  }
+
+  setHLSSourceData(sourceData) {
+    this.hlsDataManage.setSourceData(sourceData)
+  }
+
+  setHLSSegmentPool(segmentPool) {
+    this.hlsDataManage.setSegmentPool(segmentPool)
   }
 
   startLoad(startTime) {
     startTime = Math.max(startTime, 0)
-    this.startLoadData(startTime)
+    switch (this.type.toUpperCase()) {
+      case 'HLS':
+        this.hlsDataManage.startLoad(startTime)
+        break
+      case 'MP4':
+        this.mp4DataManage.startLoad(startTime)
+        break
+      default:
+        this.logger.error('startLoad', 'type error', this.type)
+    }
   }
 
-  startLoadData(startTime) {
-    this.loadData.startLoad(startTime)
+  clearDataManage() {
+    this.dataManage.clear()
   }
 
-  clearLoadData() {
-    this.loadData.clear()
-  }
-
-  getDataInstance(type, ...args) {
+  getDataManage(type, ...args) {
     if (!type) {
       return
     }
-    switch (type) {
-      case 'load': {
-        if (!this.loadData) {
-          this.setLoadData(...args)
-        }
-        return this.loadData
-      }
-      default: {
-        return null
-      }
+    switch (type.toUpperCase()) {
+      case 'HLS':
+        return this.getHLSDataManage()
+      case 'MP4':
+        return this.getMP4DataManage()
     }
   }
 }

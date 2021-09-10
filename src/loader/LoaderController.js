@@ -9,19 +9,21 @@
 
 import BaseController from '../base/BaseController'
 import HLSLoader from './HLSLoader'
+import MP4Loader from './MP4Loader'
 import { state } from '../config/LoaderConfig'
 import Events from '../config/EventsConfig'
 
 const LoadersEnum = {
   // HLS, MP4, DASH
-  'HLS': HLSLoader
+  'HLS': HLSLoader,
+  'MP4': MP4Loader
 }
 
 class LoaderController extends BaseController {
 
   state = null
   exeLoader = null
-  loadData = null
+  dataManage = null
   type = 'HLS'
   options = null
   dataController = null
@@ -43,19 +45,28 @@ class LoaderController extends BaseController {
       loaderController: this
     }))
     this.setSourceURL(options.sourceURL)
-    if (this.player.loadData) {
-      this.setLoadData(this.player.loadData)
+    if (this.player.dataManage) {
+      this.setDataManage(this.player.dataManage)
     } else {
-      this.setLoadData(this.dataController.getDataInstance('load', options))
+      this.setDataManage(this.dataController.getDataManage(type, options))
     }
-    this.exeLoader.setLoadData(this.loadData)
+    this.exeLoader.setDataManage(this.dataManage)
   }
 
   run() {
     this.state = state.LOAD_PLAYLIST
     this.events.emit(Events.LoaderPlayListStart, this)
     this.logger.info('run', state[this.state], 'url:', this.options.sourceURL)
-    this.loadPlaylist()
+    switch(this.type.toUpperCase()) {
+      case 'HLS':
+        this.loadHLS()
+        break
+      case 'MP4':
+        this.loadMP4()
+        break
+      default:
+        this.logger.erro('run', `this ${this.type} is not valid.`, this.type)
+    }
   }
 
   bindEvent() {
@@ -64,14 +75,34 @@ class LoaderController extends BaseController {
     })
   }
 
-  loadPlaylist(callback) {
+  loadMP4(callback) {
+    this.exeLoader.preload( (data) => {
+      if (!data) {
+        this.logger.error('run', 'start preload mp4', 'data:', data)
+        return
+      }
+      if (typeof callback === 'function') {
+        console.info('mp4Preload data:', data);
+        callback.call(this, data)
+      }
+      // this.dataController.setDataManageSourceData(this.exeLoader.getSourceData())
+      // this.dataController.setDataManageSegmentPool(this.exeLoader.getSegmentPool())
+      this.state = state.PRELOADED_MP4
+      this.events.emit(Events.LoaderMP4Loaded, this)
+      if (typeof callback === 'function') {
+        callback.call(this, data)
+      }
+    })
+  }
+
+  loadHLS(callback) {
     this.exeLoader.loadPlaylist( (data) => {
       if (!data) {
         this.logger.error('run', 'start load m3u8', 'data:', data)
         return
       }
-      this.dataController.setLoadDataSourceData(this.exeLoader.getSourceData())
-      this.dataController.setLoadDataSegmentPool(this.exeLoader.getSegmentPool())
+      this.dataController.setHLSSourceData(this.exeLoader.getSourceData())
+      this.dataController.setHLSSegmentPool(this.exeLoader.getSegmentPool())
       this.state = state.LOADED_PLAYLIST
       this.events.emit(Events.LoaderPlayListLoaded, this)
       if (typeof callback === 'function') {
@@ -82,11 +113,11 @@ class LoaderController extends BaseController {
 
   switchPlaylist(sourceURL, callback) {
     this.setSourceURL(sourceURL)
-    this.dataController.clearLoadData()
+    this.dataController.clearDataManage()
     this.state = state.LOAD_PLAYLIST
     this.events.emit(Events.LoaderPlayListStart, this)
     this.logger.info('switchPlaylist', state[this.state], 'url:', sourceURL)
-    this.loadPlaylist(callback)
+    this.loadHLS(callback)
   }
 
   setExeLoader(exeLoader) {
@@ -105,12 +136,12 @@ class LoaderController extends BaseController {
     return this.exeLoader.getSourceURL()
   }
 
-  setLoadData(loadData) {
-    this.loadData = loadData
+  setDataManage(dataManage) {
+    this.dataManage = dataManage
   }
 
-  getLoadData() {
-    return this.loadData
+  getDataManage() {
+    return this.dataManage
   }
 
   getSourceData() {

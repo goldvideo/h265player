@@ -127,9 +127,9 @@ class HLSLoader extends BaseLoader {
       return false
     }
     // max duration limit
-    if (this.dataController.getLoadDataBufferPool().bufferDuration > this.maxBufferDuration) {
+    if (this.dataController.getHLSBufferPool().bufferDuration > this.maxBufferDuration) {
       this.logger.info('checkLoadCondition', 'stop load next segment.',
-      'bufferDuration:', this.dataController.getLoadDataBufferPool().bufferDuration, 'maxBufferDuration:', this.maxBufferDuration)
+      'bufferDuration:', this.dataController.getHLSBufferPool().bufferDuration, 'maxBufferDuration:', this.maxBufferDuration)
       return false
     }
     return true

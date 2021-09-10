@@ -9,9 +9,10 @@ import { TSDemux, Events as DemuxerEvents } from 'demuxer';
 
 import { AV_TIME_BASE_Q }from '../config/Config.js'
 class TsDemux {
-  previousPes = null
+  previousPes = {}
   maxAudioPTS = 0
   maxVideoPTS = 0
+  offset = 0
   constructor(decode) {
     if (!decode) {
       console.error('class TsDemux need pass decode parmas')
@@ -33,6 +34,7 @@ class TsDemux {
 
       this.demuxer.on(DemuxerEvents.DEMUX_DATA, event => {
         if (event instanceof Array) {
+          console.log('data')
           this.dataArray.push(event)
           this.demuxed(this.dataArray)
           this.dataArray = []
