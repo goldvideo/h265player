@@ -55,7 +55,7 @@ class Player extends BaseClass {
   loader = null
   currentIndex = null
   startIndex = 1
-  loadData = null
+  dataManage = null
   paused = false
   autoPlay = true
   duration = 0
@@ -120,12 +120,13 @@ class Player extends BaseClass {
       events: this.options.events
     })
   }
-  setLoadData () {
-    this.dataController.setLoadData({
+  setDataManage () {
+    this.dataController.setDataManage({
       player: this,
+      type: this.options.type,
       events: this.options.events
     })
-    this.loadData = this.dataController.loadData
+    this.dataManage = this.dataController.dataManage
   }
   setComponentsController () {
     this.componentsController = ComponentsController.getInstance({
@@ -134,7 +135,7 @@ class Player extends BaseClass {
       $canvas: this.$canvas,
       $audioContainer: this.$audioContainer,
       $audio: this.$audio,
-      loadData: this.loadData,
+      dataManage: this.dataManage,
       bigPlayButtonColor: this.bigPlayButtonColor,
       player: this,
       events: this.options.events
@@ -166,7 +167,7 @@ class Player extends BaseClass {
   setStreamController () {
     this.streamController = new StreamController({
       events: this.options.events,
-      loadData: this.loadData,
+      dataManage: this.dataManage,
       imagePlayer: this.imagePlayer,
       audioPlayer: this.audioPlayer,
       player: this
@@ -192,7 +193,7 @@ class Player extends BaseClass {
       player: this,
       screen: this.screen,
       imagePlayer: this.imagePlayer,
-      loadData: this.loadData,
+      dataManage: this.dataManage,
       audioPlayer: this.audioPlayer,
       events: this.options.events
     })
@@ -205,7 +206,7 @@ class Player extends BaseClass {
     this.currentTime = this.startTime
     this.addEl()
     this.setDataController()
-    this.setLoadData()
+    this.setDataManage()
     this.setComponentsController()
     this.setLoadController()
     this.setControlBarController()
@@ -263,7 +264,7 @@ class Player extends BaseClass {
       if (typeof this.options.afterLoadPlaylist == 'function') {
         this.options.afterLoadPlaylist(this.laodData.sourceData)
       }
-      let sourceData = data.loadData.sourceData
+      let sourceData = data.dataManage.sourceData
       this.duration = sourceData.duration
       this.tsNumber = sourceData.length
       this.streamController.setBaseInfo({
@@ -273,7 +274,7 @@ class Player extends BaseClass {
       this.dataController.startLoad(this.startTime)
       this.setStartTime(this.originStartTime)
     })
-    this.events.on(Events.LoadDataFirstLoaded, buffer => {
+    this.events.on(Events.DataManageFirstLoaded, buffer => {
       this.logger.info('bindEvent', 'first data ready')
       this.startIndex = buffer.no
       this.streamController.currentIndex = buffer.no

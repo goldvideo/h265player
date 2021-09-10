@@ -1,0 +1,62 @@
+<!Doctype html>
+<html xmlns=http://www.w3.org/1999/xhtml> <head>
+<meta http-equiv=Content-Type content="text/html;charset=utf-8">
+<meta http-equiv=X-UA-Compatible content="IE=edge,chrome=1">
+<meta content=always name=referrer>
+<link rel="shortcut icon" href=/favicon.ico type=image/x-icon> <title>H.265在线播放器DEMO</title>
+<link rel="stylesheet" href="../dist/goldplay-h265.css">
+<script src="https://requirejs.org/docs/release/2.3.6/minified/require.js"></script>
+<style>
+  .play-container {
+    width: 800px;
+    height: 600px;
+    /* background-color: #000; */
+    margin: 20px 0 0 100px;
+    float:left;
+  }
+
+  .inline {
+    display: inline-block;
+    width: 50px;
+  }
+</style>
+</head>
+
+<body>
+  <div id="PlayerWrapper">
+    <h3>H.265 Player <b>在线播放器Demo1</b><em class="demo1" id="Demo1">DEMO</em></h3>
+    <div class="play-container"></div>
+  </div>
+  <br clear="all">
+  <br>
+  <script type="module">
+
+    (function (win, doc) {
+      const Config = {
+        get buildPath() {
+          let path = win.location.origin
+          let pathname = win.location.pathname
+          let demoIdx = pathname.lastIndexOf('/demo/')
+          return path + pathname.substr(0, demoIdx) + '/dist/'
+        },
+        get libPath() {
+          return this.buildPath + 'lib/'
+        },
+        get src() {
+          return win.location.origin + '/data/video2/playlist.m3u8'
+        }
+      }
+      let el = doc.querySelector('.play-container')
+      require(['../dist/goldplay-h265.cjs.js'], function(GoldPlay) {
+        let player = new GoldPlay(el, {
+          sourceURL: Config.src,
+          type: 'HLS',
+          libPath: Config.libPath,
+          playBackRate: 1,
+        })
+      })
+    })(window, document)
+  </script>
+</body>
+
+</html>

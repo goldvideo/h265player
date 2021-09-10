@@ -67,7 +67,7 @@ class ProgressBar extends BaseComponent {
     let isDraging = false
 
     this.events.on(Events.PlayerTimeUpdate, (time) => {
-      const duration = this.options.loadData.sourceData.duration
+      const duration = this.options.dataManage.sourceData.duration
       if (isDraging || !time || !duration) {
         return
       }
@@ -87,7 +87,7 @@ class ProgressBar extends BaseComponent {
       if (evt.target === this.$progressDragDot) {
         return
       }
-      const duration = this.options.loadData.sourceData.duration || 0
+      const duration = this.options.dataManage.sourceData.duration || 0
       const pixelTime = duration / this.progressBarWidth
       let targetLeft = 0
       if (evt.target.classList.contains(cssName.progressBarLoad)) {
@@ -206,7 +206,7 @@ class ProgressBar extends BaseComponent {
   }
 
   updateProgressLoad(bufferInfo) {
-    const duration = this.options.loadData.sourceData.duration
+    const duration = this.options.dataManage.sourceData.duration
     if (!duration) {
       return
     }
@@ -221,7 +221,7 @@ class ProgressBar extends BaseComponent {
 
   getSeekTime(width, duration) {
     const progressBarWidth = this.progressBarWidth
-    duration = duration || this.options.loadData.sourceData.duration || 0
+    duration = duration || this.options.dataManage.sourceData.duration || 0
     const pixelTime = duration / (width || progressBarWidth)
     const seekTime = this.$progressBarPlay.offsetWidth * pixelTime * 1000
     return seekTime
