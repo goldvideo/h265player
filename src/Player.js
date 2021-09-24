@@ -60,6 +60,7 @@ class Player extends BaseClass {
   autoPlay = true
   duration = 0
   tsNumber = 0
+  isLive = false
  /**
   * @property {string} sourceURL - The url of the video to play
   * @property {string} source - The url of the video to play
@@ -85,6 +86,7 @@ class Player extends BaseClass {
   * @property {AlertError} alertError - The alert info when error happens
   * @property {Worker} httpWorker - set User's web worker
   * @property {Function} afterLoadPlaylist - To handle operations after playlist is loaded
+  * @property {Boolean} isLive - If the video type is live
  */
   constructor (el, options = {}) {
     super()
@@ -106,6 +108,7 @@ class Player extends BaseClass {
     this.startTime = options.startTime === undefined ? this.startTime : options.startTime
     this.originStartTime = this.startTime
     this.playbackRate = options.playbackRate === undefined ? this.playbackRate : options.playbackRate
+    this.isLive = options.isLive !== undefined ? options.isLive : this.isLive
   }
   setAlertError () {
     this.options.alertError = this.alertError = AlertError.getInstance({
@@ -224,6 +227,13 @@ class Player extends BaseClass {
     this.bindEvent()
   }
   bindEvent () {
+    this.events.on(Events.LoaderNextPlayListLoaded, (index, length, duration) => {
+      this.duration += duration
+      this.streamController.setBaseInfo({
+        tsNumber: index + length - 1,
+        duration: this.duration,
+      })
+    })
     this.events.on(Events.PlayerOnPlay, () => {
       this.play()
     })

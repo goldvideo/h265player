@@ -31,6 +31,7 @@ class HLSLoader extends BaseLoader {
 
   currentNo = null
   maxRetryCount = BUFFER.maxRetryCount
+  end = 0
 
   constructor(options) {
     super()
@@ -75,12 +76,18 @@ class HLSLoader extends BaseLoader {
       this.events.emit(Events.PlayerThrowError, errors)
       return
     }
-    let segments = data.segments
-    segments.forEach(item => {
-      item.start = Utils.msec2sec(item.start)
-      item.end = Utils.msec2sec(item.end)
+    let segments = []
+    data.segments.forEach(item => {
+      if(this.segmentPool.getBy(segment => item.name === segment.name).length !== 0) { // 去重
+        return 
+      }
+      item.start = Utils.msec2sec(item.start) + this.end
+      item.end = Utils.msec2sec(item.end) + this.end
       item.duration = Utils.msec2sec(item.duration)
+      segments.push(item)
     })
+    this.end = segments[segments.length - 1].end
+    data.segments = segments
     this.setSourceData(Object.freeze(data))
     this.segmentPool.addAll(data.segments)
     callback.call(this, data)

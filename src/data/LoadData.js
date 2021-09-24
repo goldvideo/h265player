@@ -51,6 +51,9 @@ class LoadData extends BaseClass {
         this.events.emit(Events.LoadDataFirstLoaded, buffer, time)
       }
     })
+    this.events.on(Events.LoaderNextPlayListLoaded, (index, length) => {
+      this.loadSegmentByNo(index)
+    })
   }
 
   setOptions(options) {
