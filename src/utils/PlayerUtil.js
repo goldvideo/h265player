@@ -49,6 +49,7 @@ export default class PlayerUtil {
     $ele.classList.add(cssName.screenCanvas)
     $ele.width = player.options.screenWidth || player.screenWidth
     $ele.height = player.options.screenHeight || player.screenHeight
+    $ele.useWebGl = player.options.useWebGl || player.useWebGl
     return $ele
   }
 

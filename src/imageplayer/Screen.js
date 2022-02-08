@@ -20,7 +20,8 @@ export default class Screen extends BaseClass {
   }
 
   setRender(canvas) {
-    this.render = yuvCanvas.attach(canvas || this.canvas, { webGL: false })
+    const realCanvas = canvas || this.canvas
+    this.render = yuvCanvas.attach(realCanvas, { webGL: realCanvas.useWebGl })
   }
 
   clear() {
