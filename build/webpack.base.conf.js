@@ -180,13 +180,13 @@ module.exports = {
     //     // toType: 'file',
     //   },
     // ]),
-    new StyleLintPlugin({
-      configFile: path.resolve(buildPath, 'stylelint.config.js'),
-      context: path.resolve(basePath, './src/themes'),
-      files: '**/*.css',
-      failOnError: false,
-      quiet: false,
-    }),
+    // new StyleLintPlugin({
+    //   configFile: path.resolve(buildPath, 'stylelint.config.js'),
+    //   context: path.resolve(basePath, './src/themes'),
+    //   files: '**/*.css',
+    //   failOnError: false,
+    //   quiet: false,
+    // }),
     new MiniCssExtractPlugin({
       filename: 'goldplay-h265.css',
       chunkFilename: '[id].css'

@@ -195,9 +195,8 @@ let player = new GoldPlay(el, options}
 # 开发与维护
    * github: [https://github.com/goldvideo/h265player](https://github.com/goldvideo/h265player)
 
-   * 添加微信入群  
+   * 添加微信入群,请备注goldvideo  
     liu635647
-   
    
    * Slack讨论组
    https://join.slack.com/t/goldvideo/shared_invite/zt-l0123zsk-jvHxsAQ8bCRl0~4QLNBEeQ
