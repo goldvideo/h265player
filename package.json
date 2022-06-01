@@ -61,7 +61,6 @@
     "rollup-plugin-uglify": "^6.0.3",
     "style-loader": "^0.23.1",
     "stylelint": "13.5.0",
-    "stylelint-webpack-plugin": "0.10.5",
     "uglifyjs-webpack-plugin": "^2.2.0",
     "web-audio-test-api": "^0.5.2",
     "webpack": "^4.41.2",
