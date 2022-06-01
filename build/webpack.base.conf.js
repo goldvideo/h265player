@@ -6,7 +6,7 @@ const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
 const Webpack2Polyfill = require('webpack2-polyfill-plugin')
 // const CopyPlugin = require('copy-webpack-plugin')
 const MiniCssExtractPlugin = require("mini-css-extract-plugin")
-const StyleLintPlugin = require('stylelint-webpack-plugin')
+// const StyleLintPlugin = require('stylelint-webpack-plugin')
 
 const pkgJson = require('../package.json')
 
