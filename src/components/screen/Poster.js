@@ -162,8 +162,10 @@ class Poster extends BaseComponent {
     }
     const width = this.element.parentNode.offsetWidth
     const height = this.element.parentNode.offsetHeight
-    this.element.style.width = width + 'px'
-    this.element.style.marginTop = (height - this.element.offsetHeight - 20) / 2 + 'px'
+    // this.element.style.width = width + 'px'
+    // this.element.style.width = '100%'
+    // this.element.style.position = 'relative'
+    // this.element.style.marginTop = (height - this.element.offsetHeight - 20) / 2 + 'px'
   }
 
   bindEvent() {

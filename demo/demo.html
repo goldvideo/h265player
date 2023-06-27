@@ -1,8 +1,8 @@
 <!Doctype html>
-<html xmlns=http://www.w3.org/1999/xhtml> <head>
+<head>
 <meta http-equiv=Content-Type content="text/html;charset=utf-8">
 <meta http-equiv=X-UA-Compatible content="IE=edge,chrome=1">
-<meta content=always name=referrer>
+<!-- <meta content=always name=referrer> -->
 <link rel="shortcut icon" href=/favicon.ico type=image/x-icon> <title>H.265在线播放器DEMO</title>
 <link rel="stylesheet" href="../dist/goldplay-h265.css">
 <script src="../dist/goldplay-h265-sdk.js"></script>
@@ -26,7 +26,8 @@
   <div id="PlayerWrapper">
     <h3>H.265 Player <b>在线播放器Demo1</b><em class="demo1" id="Demo1">DEMO</em></h3>
     <div class="play-container"></div>
-    <input type="button" id="change" value=change/>
+    <!-- <input type="button" id="change" value=change/> -->
+    <!-- <a href="http://www.baidu.com">baidu.com</a> -->
   </div>
   <br clear="all">
   <br>
@@ -51,11 +52,14 @@
       }
       let el = doc.querySelector('.play-container')
       let player = new GoldPlay(el, {
+        poster: 'http://lf3-static.bytednsdoc.com/obj/eden-cn/nupenuvpxnuvo/xgplayer_doc/poster.jpg',
         // sourceURL: Config.src,
-        sourceURL: 'https://livecbing.alicdn.com/mediaplatform/0083f18b-3e8e-4932-8b73-b37647a0aa14_merge.m3u8',
+        sourceURL: 'http://localhost/git/goldvideo/h265player/data/video1/playlist.m3u8',
         type: 'HLS',
         libPath: Config.libPath,
         playBackRate: 1,
+        autoPlay: false,
+        // debug: true,
         rateList: [
           {"url":"http://localhost:9011/gitwork/goldplay/h265player/data/video1/playlist.m3u8","id":51,"name":"720P","value":"720"},
            {"url":"http://localhost:9011/gitwork/goldplay/h265player/data/video3/playlist.m3u8","id":51,"name":"高清","value":"600"}
