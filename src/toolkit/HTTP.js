@@ -200,10 +200,12 @@ class HTTP {
   options = {
     // 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
     'content-type': 'application/json;charset=UTF-8',
-    cache: 'no-cache',
+    // cache: 'no-cache',
     // credentials: 'same-origin',
     // credentials: 'include',
-    mode: 'cors'
+    mode: 'cors',
+    referrer: "about:client",
+  referrerPolicy: "no-referrer-when-downgrade",
     // redirect: 'follow',
     // referrer: 'no-referrer',
   }
@@ -227,6 +229,7 @@ class HTTP {
   }
 
   request(url, options = {}, fileType) {
+    
     if (!url) {
       logger.error(
         '[HTTP>request]',
@@ -246,6 +249,7 @@ class HTTP {
         options
       )
     )
+    console.error('request', this.options)
     return fetch(this.options.url, this.options).then(response => {
       return handleResponse(response, fileType)
     })
