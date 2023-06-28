@@ -70,7 +70,7 @@ export default class Utils {
     } else if (ele .webkitRequestFullScreen) {
       ele .webkitRequestFullScreen()
       setTimeout(()=> {
-        console.error('fullscreen success')
+        // console.error('fullscreen success')
         document.dispatchEvent(new Event('fullscreenchange'))
       }, 0)
     }
@@ -85,7 +85,7 @@ export default class Utils {
     } else if (doc.webkitExitFullscreen) {
       doc.webkitExitFullscreen()
       setTimeout(()=> {
-        console.error('exitfullscreen success')
+        // console.error('exitfullscreen success')
         document.dispatchEvent(new Event('fullscreenchange'))
       }, 0)
     }
