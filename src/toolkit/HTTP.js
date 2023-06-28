@@ -249,7 +249,7 @@ class HTTP {
         options
       )
     )
-    console.error('request', this.options)
+    // console.error('request', this.options)
     return fetch(this.options.url, this.options).then(response => {
       return handleResponse(response, fileType)
     })
