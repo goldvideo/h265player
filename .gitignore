@@ -13,8 +13,6 @@ lerna-debug
 theme/lib/
 
 # ignore dist
-dist/*.js
-dist/*.css
 tmp/
 
 # Editor directories and files
