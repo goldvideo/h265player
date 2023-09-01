@@ -60,6 +60,7 @@ class Player extends BaseClass {
   autoPlay = true
   duration = 0
   tsNumber = 0
+  useWebGl = false
  /**
   * @property {string} sourceURL - The url of the video to play
   * @property {string} source - The url of the video to play
@@ -85,6 +86,7 @@ class Player extends BaseClass {
   * @property {AlertError} alertError - The alert info when error happens
   * @property {Worker} httpWorker - set User's web worker
   * @property {Function} afterLoadPlaylist - To handle operations after playlist is loaded
+  * @property {Boolean} useWebGl - If use yuv-canvas webGl to drawFrame
  */
   constructor (el, options = {}) {
     super()
@@ -106,6 +108,7 @@ class Player extends BaseClass {
     this.startTime = options.startTime === undefined ? this.startTime : options.startTime
     this.originStartTime = this.startTime
     this.playbackRate = options.playbackRate === undefined ? this.playbackRate : options.playbackRate
+    this.useWebGl = options.useWebGl === undefined ? this.useWebGl : options.useWebGl
   }
   setAlertError () {
     this.options.alertError = this.alertError = AlertError.getInstance({

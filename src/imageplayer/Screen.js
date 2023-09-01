@@ -20,7 +20,8 @@ export default class Screen extends BaseClass {
   }
 
   setRender(canvas) {
-    this.render = yuvCanvas.attach(canvas || this.canvas)
+    const realCanvas = canvas || this.canvas
+    this.render = yuvCanvas.attach(realCanvas, { webGL: realCanvas.useWebGl })
   }
 
   clear() {
@@ -28,12 +29,12 @@ export default class Screen extends BaseClass {
   }
   drawFrame(data) {
     let st = Date.now()
-    let { buf_y, buf_u, buf_v, width, height, stride_y, stride_u, stride_v} = data
+    let { buf_y, buf_u, buf_v, width, height, stride_y, stride_u, stride_v } = data
     let y, u, v, format, frameDisplay
     let width_y = width
     let height_y = height
     let width_u = width_y / 2
-    let height_u = height_y /2
+    let height_u = height_y / 2
     y = {
       bytes: buf_y,
       stride: stride_y
