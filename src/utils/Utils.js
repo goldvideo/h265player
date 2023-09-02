@@ -9,16 +9,19 @@
 import loadjs from 'loadjs'
 
 function is(clazz = 'Object') {
-  return function (obj) {
-    let type = '[object ' + clazz + ']'
-    return (Object.prototype.toString.call(obj) == type)
+  return function (value) {
+    const type = `[object ${clazz}]`
+
+    return Object.prototype.toString.call(value) === type
   }
 }
+
 export default class Utils {
 
-  static isObject = () => is('Object')
-  static isString = () => is('String')
-  static isFunction = () => is('Function')
+  static isObject = is('Object')
+  static isString = is('String')
+  static isFunction = is('Function')
+
   /**
    * load script dynamic
    * @param {String} urls 
