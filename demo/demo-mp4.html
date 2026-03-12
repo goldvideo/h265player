@@ -6,7 +6,6 @@
 <link rel="shortcut icon" href=/favicon.ico type=image/x-icon> <title>H.265在线播放器DEMO</title>
 <link rel="stylesheet" href="../dist/goldplay-h265.css">
 <script src="../dist/goldplay-h265-sdk.js"></script>
-<script src="../src/loader/h265web.js"></script>
 <style>
   .play-container {
     width: 800px;
@@ -24,8 +23,12 @@
 </head>
 
 <body>
+<h1>原始MP4播放器</h1>
+  <video id="OriginPlayer" width="320" src="../data/mp4/produce.mp4" controls preload="auto">
+</video>
+<hr clear="all"><br>
   <div id="PlayerWrapper">
-    <h3>H.265 Player 在线播放器。MP4分range加载<em class="demo1" id="Demo1">DEMO</em></h3>
+    <h1>H.265 Player 在线播放器。MP4分range加载<em class="demo1" id="Demo1">DEMO</em></h1>
     <div class="play-container"></div>
   </div>
   <br clear="all">

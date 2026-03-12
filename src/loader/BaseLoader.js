@@ -26,11 +26,11 @@ class BaseLoader extends BaseClass {
   }
 
   getDataManage() {
-    return this.getDataManage
+    return this.dataManage
   }
 
   getSourceURL() {
-    return this.getSourceURL
+    return this.sourceURL
   }
 
 }

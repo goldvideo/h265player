@@ -135,19 +135,21 @@ export default class StreamController extends BaseClass {
     })
   }
   onAppendEnd(data) {
-    if (data) {
-      this.logger.info('onAppendEnd','events.decodeFlush', data)
+    // data 可能是 {isFlush: true} 之类的对象
+    if (data && typeof data === 'object' && data.isFlush) {
+      this.logger.info('onAppendEnd', 'flushing decoder')
       this.events.emit(Events.DecodeFlush)
       return
     }
-    this.logger.info('onAppendEnd', 'start load next ts condition', this.checkBuffer(), this.currentIndex)
+
     if (this.checkBuffer() && this.currentIndex !== null) {
-      this.logger.info('onAppendEnd', 'load next ts. currentIndex:', this.currentIndex)
+      this.logger.info('onAppendEnd', 'load next segment')
       this.loadNext()
       return
     }
+
     this.dataManageStatus = 'loadend'
-    this.logger.info('onAppendEnd', 'load ts stop')
+    this.logger.info('onAppendEnd', 'load segment stop')
   }
   onAACDemuxed(dataArray) {
     if (this.player.reseting) {

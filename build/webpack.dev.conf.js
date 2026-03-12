@@ -23,7 +23,8 @@ module.exports = merge(baseWebpackConfig, {
 
   module: {},
 
-  devtool: 'module-eval-inline-source-map', // enum
+  devtool: 'eval-cheap-module-source-map',
+  // devtool: 'module-eval-inline-source-map', // enum
   // enhance debugging by adding meta info for the browser devtools
   // source-map most detailed at the expense of build speed.
   // cheap-source-map

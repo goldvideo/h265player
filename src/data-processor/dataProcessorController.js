@@ -19,13 +19,13 @@ export default class DataProcessorController extends BaseClass {
   }
   init() {
     let type = this.type
-    if (type == 'ts') {
-      this.initNornalWorker()
-    }
+    // TS和MP4都需要初始化Worker
+    this.initNormalWorker()  // 修复拼写: initNornalWorker → initNormalWorker
     this.bindEvent()
     this.loadjs()
   }
-  initNornalWorker() {
+
+  initNormalWorker() {
     this.processor = this.initWorker()
   }
   initWorker() {
@@ -109,10 +109,13 @@ export default class DataProcessorController extends BaseClass {
     this.logger.info('onStartDemux', 'postMessage to demux')
 
     if (data && data.arrayBuffer) {
+      // 根据player的type确定媒体类型
+      const mediaType = this.player.options && this.player.options.type ? this.player.options.type.toLowerCase() : 'ts'
       this.processor.postMessage({
         type: 'startDemux',
         data: data.arrayBuffer,
-        isLast: this.isLast
+        isLast: this.isLast,
+        mediaType: mediaType
       }, [data.arrayBuffer.buffer])
     } else {
       this.logger.error('onStartDemux', 'data is null', 'data:', data)
