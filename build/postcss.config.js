@@ -3,13 +3,14 @@ module.exports = (ctx) => ({
   map: ctx.env === 'development' ? ctx.map : false,
   plugins: {
     'postcss-import': {},
-    'precss': {},
-    // 'autoprefixer': {},
     'postcss-preset-env': {},
-    'postcss-cssnext': {},
     'postcss-url': {},
     'cssnano': {
-      preset: 'default'
+      preset: ['default', {
+        discardComments: {
+          removeAll: true
+        }
+      }]
     }
   }
 })

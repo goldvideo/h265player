@@ -51,7 +51,7 @@ export class DataController extends BaseController {
 
   getMP4DataManage(...args) {
     if (this.mp4DataManage == null) {
-      this.mp4DataManage(args)
+      this.setMP4DataManage(...args)
     }
     return this.mp4DataManage
   }
@@ -70,6 +70,26 @@ export class DataController extends BaseController {
 
   setHLSSegmentPool(segmentPool) {
     this.hlsDataManage.setSegmentPool(segmentPool)
+  }
+
+  setMP4SourceData(sourceData) {
+    if (this.mp4DataManage) {
+      this.mp4DataManage.setSourceData(sourceData)
+    }
+  }
+
+  setMP4SegmentPool(segmentPool) {
+    if (this.mp4DataManage) {
+      this.mp4DataManage.setSegmentPool(segmentPool)
+    }
+  }
+
+  getMP4SourceData() {
+    return this.mp4DataManage ? this.mp4DataManage.getSourceData() : null
+  }
+
+  getMP4SegmentPool() {
+    return this.mp4DataManage ? this.mp4DataManage.getSegmentPool() : []
   }
 
   startLoad(startTime) {

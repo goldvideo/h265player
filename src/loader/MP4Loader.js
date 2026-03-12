@@ -3,7 +3,7 @@
  * All Rights Reserved.
  * @file MP4Loader
  * @desc
- * hls load module
+ * MP4 load module
  * @author Jarry
  */
 
@@ -14,16 +14,11 @@ import BaseLoader from './BaseLoader'
 import {
   state
 } from '../config/LoaderConfig'
-import {
-  M3U8Parser
-} from '../toolkit/M3U8Parser'
+import MP4Parser from '../toolkit/MP4Parser'
 import SegmentPool from '../data/SegmentPool'
 import SegmentModel from '../model/SegmentModel'
 import Events from '../config/EventsConfig'
 import Utils from '../utils/Utils'
-import {
-  MP4Demux, Events as DemuxerEvents
-} from 'demuxer';
 
 class MP4Loader extends BaseLoader {
   state = state.IDLE
@@ -35,11 +30,15 @@ class MP4Loader extends BaseLoader {
   options = null
   httpWorker = null
   mp4Meta = null
+  mp4Parser = null
+  sourceData = null
   // segmentPool should be immutability
   segmentPool = [ /* new SegmentModel */ ]
 
   currentNo = null
   maxRetryCount = BUFFER.maxRetryCount
+  mp4Buffer = null
+  mp4FileSize = 0
 
   constructor(options) {
     super()
@@ -47,14 +46,57 @@ class MP4Loader extends BaseLoader {
     this.loaderController = this.options.loaderController
     this.dataController = this.loaderController.dataController
     this.httpWorker = options.httpWorker
-    // this.setSegmentPool(new SegmentPool())
+    this.setSegmentPool(new SegmentPool())
+
+    // 绑定Worker消息处理器
+    this.onWorkerMessage = this.handleWorkerMessage.bind(this)
+    if (this.httpWorker) {
+      this.httpWorker.addEventListener('message', this.onWorkerMessage)
+    }
   }
 
-  loadRange(callback) {
+  /**
+   * 统一处理Worker消息
+   */
+  handleWorkerMessage(event) {
+    const data = event.data
+    const body = data.data
 
+    if (!body) {
+      const content = `Get the ${data.fileType} file error. URL: ${data.url}`
+      this.events.emit(Events.PlayerAlert, content)
+      this.events.emit(Events.LoaderError, content, data)
+      const errors = [this.state, 'load mp4 error.', 'data:', data, content]
+      this.events.emit(Events.PlayerThrowError, errors)
+      return
+    }
+
+    // 处理预加载响应
+    if (data.name === 'preloadmp4') {
+      this.logger.info('handleWorkerMessage', 'receive mp4 header', 'size:', body.byteLength)
+      this.handlePreloadResponse(data, body, this.preloadCallback)
+    }
+    // 处理分片加载响应
+    else if (typeof data.name === 'number') {
+      this.logger.info('handleWorkerMessage', 'read success', 'segment no:', data.name)
+      this.state = state.IDLE
+      this.events.emit(Events.LoaderLoaded, data, this.currentSegment, this.currentType, this.currentTime)
+    }
+    else {
+      this.logger.warn('handleWorkerMessage', 'unknown response', 'data:', data)
+    }
   }
 
+  /**
+   * 预加载MP4文件头，获取元数据
+   */
   preload(callback) {
+    this.logger.info('preload', 'start preload mp4 metadata', 'url:', this.sourceURL)
+
+    // 保存回调供handleWorkerMessage使用
+    this.preloadCallback = callback
+
+    // 先请求文件头（0-256KB）来获取moov box信息
     this.httpWorker.postMessage({
       type: 'invoke',
       fileType: 'mp4',
@@ -63,50 +105,75 @@ class MP4Loader extends BaseLoader {
       url: this.sourceURL,
       options: {
         headers: {
-          withCredentials: false,
-          cache: 'no-cache',
-          mode: 'cors',
-          responseType: 'arraybuffer',
-          Pragma: 'no-cache',
-          fileTpe: 'mp4',
-          // Range: `bytes=0-200`
+          'Range': 'bytes=0-262143' // 256KB
         }
       }
     })
-    this.httpWorker.onmessage = (event) => {
-      const data = event.data
-      const body = event.data.data
-      if (!body) {
-        const content = `Get the ${data.fileType} file error. URL: ${data.url}`
-        this.events.emit(Events.PlayerAlert, content)
-        this.events.emit(Events.LoaderError, content, data)
-        const errors = [this.state, 'preload mp4 error.', 'data:', data, content]
-        this.events.emit(Events.PlayerThrowError, errors)
-        return
+  }
+
+  /**
+   * 处理预加载响应
+   */
+  handlePreloadResponse(data, buffer, callback) {
+    try {
+      // 解析MP4元数据
+      this.mp4Parser = new MP4Parser()
+
+      if (!this.mp4Parser.parse(buffer)) {
+        throw new Error('Failed to parse MP4 metadata')
       }
-      if (data.name == 'preloadmp4') {
-        console.log('mp4 event:', event)
-        // TODO: 构建playlist，根据时间划分range，确定分片个数，并根据总时长确定进度条
-        event.data.data.arrayBuffer().then((bytes) => {
-          console.error('mp4 arrayBuffer first done:', bytes)
-          this.events.emit(Events.LoaderMP4Loaded, bytes)
-          let demux = new MP4Demux({
-            debug: true
-          });
 
-          demux.on(DemuxerEvents.DEMUX_DATA, (e) => {
-            console.log('MP4Demux on:', e)
-          });
+      const metadata = this.mp4Parser.getMetadata()
+      this.logger.info('preload', 'MP4 metadata:', metadata)
 
-          demux.on(DemuxerEvents.DONE, (e) => {
-            console.log('MP4Demux done:', e)
-          });
-
-          demux.push(bytes);
-        });
-        this.loadFragment({start:0, end:100}, '')
+      // 构建segment pool
+      const segments = this.mp4Parser.getSegments()
+      if (segments && segments.length > 0) {
+        segments.forEach(seg => {
+          const segmentModel = new SegmentModel(seg)
+          this.segmentPool.push(segmentModel)
+        })
+        this.logger.info('preload', 'build segment pool:', segments.length)
       }
+
+      // 保存元数据
+      this.setSourceData({
+        duration: metadata.duration,
+        width: metadata.width,
+        height: metadata.height,
+        videoTrack: metadata.videoTrack,
+        audioTrack: metadata.audioTrack,
+        segments: segments
+      })
+
+      if (typeof callback === 'function') {
+        callback.call(this, this.sourceData)
+      }
+
+    } catch (error) {
+      this.logger.error('preload', 'Parse error:', error)
+      const content = `Parse MP4 file error: ${error.message}`
+      this.events.emit(Events.PlayerAlert, content)
+      this.events.emit(Events.LoaderError, content, error)
+      const errors = [this.state, 'parse mp4 error.', error]
+      this.events.emit(Events.PlayerThrowError, errors)
     }
+  }
+
+  setSourceData(sourceData) {
+    this.sourceData = sourceData
+  }
+
+  getSourceData() {
+    return this.sourceData
+  }
+
+  setSegmentPool(segmentPool) {
+    this.segmentPool = segmentPool
+  }
+
+  getSegmentPool() {
+    return this.segmentPool
   }
 
   isNotFree(notice = '') {
@@ -129,29 +196,59 @@ class MP4Loader extends BaseLoader {
   }
 
   checkLoadCondition(segment) {
-    // over the pool range
+    // 检查分片号
     if (segment.no > this.segmentPool.length) {
       return false
     }
-    // max duration limit
-    if (this.dataController.getMP4BufferPool().bufferDuration > this.maxBufferDuration) {
-      this.logger.info('checkLoadCondition', 'stop load next segment.',
-        'bufferDuration:', this.dataController.getMP4BufferPool().bufferDuration, 'maxBufferDuration:', this.maxBufferDuration)
+
+    // 安全地检查缓冲区时长
+    const bufferPool = this.dataController.getMP4BufferPool()
+    if (!bufferPool || !bufferPool.length) {
+      return true  // 缓冲区为空，可以加载
+    }
+
+    // 计算缓冲区时长
+    const bufferDuration = bufferPool[bufferPool.length - 1].end -
+                           (bufferPool[0]?.start || 0)
+
+    if (bufferDuration > this.maxBufferDuration) {
+      this.logger.info('checkLoadCondition', 'buffer full',
+        'duration:', bufferDuration, 'max:', this.maxBufferDuration)
       return false
     }
+
     return true
   }
 
   /**
-   * load file by range
-   * @param {Range} rage 
+   * 加载MP4分片
+   * 支持HTTP Range请求按需加载
+   * @param {SegmentModel} segment
    * @param {String} type [optional] 'seek' or 'play'
    * @param {Number} time [optional] millisecond
    */
-  loadFragment(range = {start: 0, end: 1048576}, type = 'play', time = 0) {
-    let segment = range
+  loadFile(segment, type, time) {
+    if (!(segment instanceof SegmentModel)) {
+      return
+    }
+
+    // 验证type
+    if (!['play', 'seek', 'start'].includes(type)) {
+      this.logger.warn('loadFile', 'invalid type:', type)
+      type = 'play'
+    }
+
+    // 验证time
+    if (typeof time !== 'number' || isNaN(time)) {
+      time = 0
+    }
+    if (time < 0) {
+      this.logger.warn('loadFile', 'negative time:', time)
+      time = 0
+    }
+
     // only single load process
-    if (this.isNotFree() && type !== 'seek' && type !== 'start') {
+    if(this.isNotFree() && type !== 'seek' && type !== 'start') {
       this.logger.warn('loadFile', 'is loading', 'segment:', segment, 'type:', type)
       return
     }
@@ -162,11 +259,14 @@ class MP4Loader extends BaseLoader {
       return
     }
 
-    // this.currentNo = segment.no
+    this.currentNo = segment.no
+    // 保存当前段、类型、时间供handleWorkerMessage使用
+    this.currentSegment = segment
+    this.currentType = type
+    this.currentTime = time
 
-    // const baseUrl = this.getBaseUrl(segment.file)
-    // let url = baseUrl + segment.file
     let retryCount = 1
+    const url = this.options.sourceURL
 
     const _getRequestURL = (url, segment) => {
       if (typeof this.options.processURL == 'function') {
@@ -176,51 +276,45 @@ class MP4Loader extends BaseLoader {
     }
 
     const _send = () => {
+      // MP4使用整个文件，无需Range请求分片
       this.httpWorker.postMessage({
         type: 'invoke',
         fileType: 'mp4',
         method: 'get',
         name: segment.no,
-        url: _getRequestURL(url, segment)
+        url: _getRequestURL(url, segment),
+        options: {
+          headers: {
+            // 可选：根据需要使用Range请求特定区域
+            // 'Range': `bytes=${start}-${end}`
+          }
+        }
       })
     }
 
     this.state = state.LOADING
     this.events.emit(Events.LoaderLoading, segment, type, time)
-    this.httpWorker.onmessage = (event) => {
-      this.state = state.DONE
-      const data = event.data
-      this.logger.info('loadfile', 'httpWorker', 'onmessage get data')
-      if (!data || data.type === 'error') {
-        this.state = state.ERROR
-        if (retryCount <= this.maxRetryCount) {
-          this.logger.warn('loadFile', 'retry to load', 'count:', retryCount, 'segment:', segment)
-          _send()
-          retryCount += 1
-        } else {
-          this.events.emit(Events.LoaderError, segment, type, time)
-          const content = 'Load file error, please concat administrator.'
-          this.events.emit(Events.PlayerAlert, content)
-          const errors = [this.state, 'Load File error.', 'load count:', retryCount, 'segment:', segment]
-          this.events.emit(Events.PlayerThrowError, errors)
-        }
-      } else if (data.type === 'notice') {
-        if (data.noticeType === 'speed') {
-          this.events.emit(Events.LoaderUpdateSpeed, data.data)
-        }
-      } else if ((data.fileType === 'mp4') && data.name === segment.no) {
-        this.logger.info('loadFile', 'read success', 'data no:', data.name)
-        this.state = state.IDLE
-        this.events.emit(Events.LoaderLoaded, data, segment, type, time)
-      } else {
-        this.logger.warn('loadFile', 'is not mp4 file or the segment\'no is not equal.', 'fileType:', data.fileType, 'data:', data)
-      }
-    }
     _send()
   }
+
   destroy() {
+    // 移除事件监听器
+    if (this.httpWorker && this.onWorkerMessage) {
+      this.httpWorker.removeEventListener('message', this.onWorkerMessage)
+    }
+
+    // 清空回调
+    this.preloadCallback = null
+
+    // 清空数据
+    this.mp4Parser = null
+    this.sourceData = null
+    this.segmentPool.length = 0
+
+    // 终止Worker
     if (this.httpWorker) {
       this.httpWorker.terminate()
+      this.httpWorker = null
     }
   }
 }

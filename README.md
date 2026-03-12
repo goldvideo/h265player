@@ -28,6 +28,8 @@ Firefox (>52)
 * cd h265player
 # 安装依赖
 * npm install
+# # 或使用 legacy-peer-deps 忽略 peer 依赖冲突
+# npm install --legacy-peer-deps
 ```
 
 ## 工程打包

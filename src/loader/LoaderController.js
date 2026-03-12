@@ -65,7 +65,7 @@ class LoaderController extends BaseController {
         this.loadMP4()
         break
       default:
-        this.logger.erro('run', `this ${this.type} is not valid.`, this.type)
+        this.logger.error('run', `this ${this.type} is not valid.`, this.type)
     }
   }
 
@@ -76,19 +76,20 @@ class LoaderController extends BaseController {
   }
 
   loadMP4(callback) {
-    this.exeLoader.preload( (data) => {
+    this.exeLoader.preload((data) => {
       if (!data) {
-        this.logger.error('run', 'start preload mp4', 'data:', data)
+        this.logger.error('loadMP4', 'preload failed', 'data:', data)
         return
       }
-      if (typeof callback === 'function') {
-        console.info('mp4Preload data:', data);
-        callback.call(this, data)
-      }
-      // this.dataController.setDataManageSourceData(this.exeLoader.getSourceData())
-      // this.dataController.setDataManageSegmentPool(this.exeLoader.getSegmentPool())
+
+      // 设置MP4数据管理器的源数据和分片池
+      this.dataController.setMP4SourceData(this.exeLoader.getSourceData())
+      this.dataController.setMP4SegmentPool(this.exeLoader.getSegmentPool())
+
       this.state = state.PRELOADED_MP4
       this.events.emit(Events.LoaderMP4Loaded, this)
+
+      // 只调用一次回调
       if (typeof callback === 'function') {
         callback.call(this, data)
       }

@@ -81,7 +81,7 @@ class MP4DataManage extends BaseClass {
     if (segment.no === this.options.player.currentIndex) {
       this.readBufferByNo(segment.no)
     }
-    if (segment.no < this.segmentPool.getLast().no) {
+    if (this.segmentPool.length > 0 && segment.no < this.segmentPool.getLast().no) {
       this.loadSegmentByNo(segment.no + 1)
     }
   }
