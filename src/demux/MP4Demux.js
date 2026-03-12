@@ -1,7 +1,9 @@
 /* global MP4Box */
+import MP4SampleExtractor from './MP4SampleExtractor'
 
 /**
  * MP4 demuxer (H.265) using mp4box.js loaded at runtime from libPath.
+ * Falls back to manual sample extraction if mp4box.js fails.
  */
 class MP4Demux {
   constructor(decode, libPath) {
@@ -18,6 +20,11 @@ class MP4Demux {
     this.mp4boxfile = null
     this.maxVideoPTS = 0
     this.audioNotified = false
+    this.initialized = false
+    this.usingSampleExtractor = false
+    this.sampleExtractor = null
+    this.sampleIndex = 0
+    this.fullBuffer = null
     this.ensureMP4Box()
     this.init()
   }
@@ -38,33 +45,71 @@ class MP4Demux {
       console.error('MP4Box not available')
       return
     }
-    this.mp4boxfile = MP4Box.createFile()
+    console.log('[MP4Demux] MP4Box available, creating file instance')
+    // Create file with chunked: false to indicate we're loading a complete file at once
+    this.mp4boxfile = MP4Box.createFile({
+      chunked: false
+    })
+    console.log('[MP4Demux] MP4Box file created:', this.mp4boxfile)
 
     this.mp4boxfile.onReady = (info) => {
-      if (info.videoTracks && info.videoTracks.length) {
-        const trak = this.mp4boxfile.moov.traks.find(
-          t => t.tkhd.track_id === info.videoTracks[0].id
-        )
-        const entry = trak.mdia.minf.stbl.stsd.entries[0]
-        this.hvcc = entry.hvcC
-        this.videoTrackId = info.videoTracks[0].id
-        this.mp4boxfile.setExtractionOptions(this.videoTrackId, null, {
-          nbSamples: info.videoTracks[0].nb_samples,
-          rapAlignment: true
-        })
-      }
+      console.log('[MP4Demux] onReady called with info:', info)
+      this.initialized = true
+      try {
+        if (info.videoTracks && info.videoTracks.length) {
+          const trak = this.mp4boxfile.moov.traks.find(
+            t => t.tkhd.track_id === info.videoTracks[0].id
+          )
+          console.log('[MP4Demux] Found video trak:', trak)
+          if (trak && trak.mdia && trak.mdia.minf && trak.mdia.minf.stbl) {
+            const stbl = trak.mdia.minf.stbl
+            const stsd = stbl.stsd
+            if (stsd && stsd.entries && stsd.entries.length > 0) {
+              const entry = stsd.entries[0]
+              this.hvcc = entry.hvcC
+            }
+          }
+          this.videoTrackId = info.videoTracks[0].id
 
-      if (info.audioTracks && info.audioTracks.length) {
-        this.audioTrackId = info.audioTracks[0].id
-        this.mp4boxfile.setExtractionOptions(this.audioTrackId, null, {
-          nbSamples: info.audioTracks[0].nb_samples,
-          rapAlignment: true
-        })
+          // Try setExtractionOptions, but don't fail if it throws
+          try {
+            console.log('[MP4Demux] Setting extraction options for video track')
+            this.mp4boxfile.setExtractionOptions(this.videoTrackId, null, {
+              nbSamples: info.videoTracks[0].nb_samples,
+              rapAlignment: true
+            })
+          } catch (e) {
+            console.warn('[MP4Demux] setExtractionOptions failed:', e.message)
+            // Continue anyway - onExtractSamples will be called if samples are available
+          }
+        }
+
+        if (info.audioTracks && info.audioTracks.length) {
+          this.audioTrackId = info.audioTracks[0].id
+          try {
+            this.mp4boxfile.setExtractionOptions(this.audioTrackId, null, {
+              nbSamples: info.audioTracks[0].nb_samples,
+              rapAlignment: true
+            })
+          } catch (e) {
+            console.warn('[MP4Demux] setExtractionOptions for audio failed:', e.message)
+          }
+        }
+
+        // Try to start, but don't fail if it throws
+        try {
+          console.log('[MP4Demux] Calling start()')
+          this.mp4boxfile.start()
+        } catch (e) {
+          console.warn('[MP4Demux] start() failed:', e.message)
+        }
+      } catch (e) {
+        console.error('[MP4Demux] Error in onReady callback:', e)
       }
-      this.mp4boxfile.start()
     }
 
     this.mp4boxfile.onSamples = (id, user, samples) => {
+      console.log('[MP4Demux] onSamples called:', { id, samplesCount: samples?.length })
       if (id === this.videoTrackId) {
         this.handleVideoSamples(samples)
       } else if (id === this.audioTrackId) {
@@ -73,7 +118,7 @@ class MP4Demux {
     }
 
     this.mp4boxfile.onError = (e) => {
-      console.error('MP4Box error:', e)
+      console.error('[MP4Demux] MP4Box error:', e)
     }
   }
 
@@ -162,54 +207,367 @@ class MP4Demux {
   }
 
   push(buffer) {
-    if (!buffer || !this.mp4boxfile) return
-
-    // Convert various buffer types to ArrayBuffer
-    let ab = null
-    if (buffer instanceof ArrayBuffer) {
-      ab = buffer
-    } else if (buffer instanceof Uint8Array || ArrayBuffer.isView(buffer)) {
-      // Handle TypedArrays and other ArrayBufferView objects
-      // Make sure we have the underlying ArrayBuffer
-      try {
-        // Try to get the underlying buffer
-        ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
-      } catch (e) {
-        // If buffer is detached or inaccessible, log error
-        console.error('MP4Demux: Cannot access buffer.buffer, trying to copy data', e)
-        // Create a new ArrayBuffer and copy the data
-        if (buffer.byteLength > 0) {
-          ab = new ArrayBuffer(buffer.byteLength)
-          new Uint8Array(ab).set(new Uint8Array(buffer))
-        } else {
-          return
-        }
-      }
-    } else if (buffer.buffer instanceof ArrayBuffer) {
-      // Handle objects with .buffer property
-      ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
-    } else {
-      console.error('MP4Demux: Unsupported buffer type', buffer)
+    if (!buffer || !this.mp4boxfile) {
+      console.warn('MP4Demux.push: buffer or mp4boxfile is null/undefined')
       return
     }
 
-    if (!ab || ab.byteLength === 0) return
+    // Convert various buffer types to ArrayBuffer
+    let ab = null
+
+    if (buffer instanceof ArrayBuffer) {
+      ab = buffer
+    } else if (buffer instanceof Uint8Array) {
+      ab = buffer.buffer
+    } else if (ArrayBuffer.isView(buffer)) {
+      ab = buffer.buffer
+    } else if (buffer && buffer.buffer instanceof ArrayBuffer) {
+      ab = buffer.buffer
+    } else {
+      console.error('MP4Demux: Unsupported buffer type', buffer?.constructor?.name)
+      return
+    }
+
+    if (!ab || ab.byteLength === 0) {
+      console.warn('MP4Demux.push: ab is null or empty')
+      return
+    }
+
+    // Store complete buffer for fallback extraction
+    if (!this.fullBuffer) {
+      this.fullBuffer = ab
+    }
+
+    // Verify buffer is valid
+    const view = new Uint8Array(ab, 0, Math.min(16, ab.byteLength))
+    const firstBoxType = String.fromCharCode(view[4], view[5], view[6], view[7])
+    console.log('MP4Demux.push: First box type:', firstBoxType, 'Buffer size:', ab.byteLength)
 
     ab.fileStart = this.fileStart
     this.fileStart += ab.byteLength
+
     try {
-      this.mp4boxfile.appendBuffer(ab)
-      this.mp4boxfile.flush()
+      console.log('MP4Demux.push: appendBuffer with size:', ab.byteLength)
+
+      let appendSuccess = false
+      try {
+        this.mp4boxfile.appendBuffer(ab)
+        appendSuccess = true
+        console.log('MP4Demux.push: appendBuffer succeeded')
+      } catch (e1) {
+        console.warn('MP4Demux: appendBuffer threw error:', e1.message)
+        console.warn('MP4Demux: mp4box.js failed, will use manual sample extraction as fallback')
+
+        // Trigger fallback sample extraction
+        this.useFallbackSampleExtraction()
+      }
+
+      // Always try to flush
+      if (!this.usingSampleExtractor) {
+        try {
+          console.log('MP4Demux.push: calling flush...')
+          this.mp4boxfile.flush()
+          console.log('MP4Demux.push: flush succeeded')
+        } catch (e2) {
+          console.warn('MP4Demux.push: flush also threw error:', e2.message)
+        }
+      }
+
+      console.log('MP4Demux.push: completed (usingFallback:', this.usingSampleExtractor, ')')
     } catch (error) {
-      console.error('MP4Demux: Error appending buffer:', error)
+      console.error('MP4Demux: Unrecoverable error in push:', error?.message)
     }
+  }
+
+  /**
+   * Use fallback sample extraction when mp4box.js fails
+   */
+  useFallbackSampleExtraction() {
+    if (this.usingSampleExtractor) {
+      console.log('MP4Demux: Already using sample extractor')
+      return
+    }
+
+    try {
+      console.log('[MP4Demux] Initializing fallback sample extraction')
+      this.usingSampleExtractor = true
+
+      // Find moov box in the buffer
+      if (!this.mp4boxfile.moov) {
+        console.error('[MP4Demux] moov box not found, cannot extract samples')
+        return
+      }
+
+      // Find moov offset in buffer
+      let moovOffset = this.findMoovOffset()
+      if (moovOffset < 0) {
+        console.error('[MP4Demux] Could not find moov box offset in buffer')
+        return
+      }
+
+      // Get hvcc from moov if not already set
+      if (!this.hvcc && this.mp4boxfile.moov && this.mp4boxfile.moov.traks) {
+        for (const trak of this.mp4boxfile.moov.traks) {
+          if (trak.mdia && trak.mdia.hdlr && trak.mdia.hdlr.handlerType === 'vide') {
+            if (trak.mdia.minf && trak.mdia.minf.stbl && trak.mdia.minf.stbl.stsd) {
+              const entry = trak.mdia.minf.stbl.stsd.entries?.[0]
+              if (entry && entry.hvcC) {
+                this.hvcc = entry.hvcC
+              }
+            }
+            break
+          }
+        }
+      }
+
+      const moovSize = this.mp4boxfile.moov.size || 0
+
+      // Create sample extractor
+      this.sampleExtractor = new MP4SampleExtractor(
+        this.fullBuffer,
+        moovOffset,
+        moovSize,
+        this.hvcc
+      )
+
+      // Find video track offset in moov
+      let videoTrackOffset = this.findVideoTrackOffset(moovOffset)
+      if (videoTrackOffset < 0) {
+        console.error('[MP4Demux] Video track not found')
+        return
+      }
+
+      // Extract samples
+      const samples = this.sampleExtractor.extractSamples(videoTrackOffset)
+      console.log('[MP4Demux] Extracted', samples.length, 'samples using fallback')
+
+      if (samples.length > 0) {
+        // Process all samples at once
+        this.processExtractedSamples(samples)
+      }
+
+      // Notify that we're done
+      this.initialized = true
+      if (!this.audioNotified) {
+        self.postMessage({
+          type: 'demuxedAAC',
+          data: [],
+          audioEnd: true
+        })
+        this.audioNotified = true
+      }
+    } catch (error) {
+      console.error('[MP4Demux] Error in fallback sample extraction:', error)
+    }
+  }
+
+  /**
+   * Find moov box offset in the buffer
+   */
+  findMoovOffset() {
+    const buffer = this.fullBuffer
+    const view = new Uint8Array(buffer)
+    let offset = 0
+
+    while (offset + 8 < buffer.byteLength) {
+      const sizeBytes = new Uint8Array(buffer, offset, 4)
+      const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+      const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+      const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+      if (type === 'moov') {
+        console.log('[MP4Demux] Found moov at offset:', offset)
+        return offset
+      }
+
+      if (size === 0 || size < 8) break
+      offset += size
+    }
+
+    return -1
+  }
+
+  /**
+   * Find video track offset within moov box
+   */
+  findVideoTrackOffset(moovOffset) {
+    const buffer = this.fullBuffer
+    const moovSize = ((new Uint8Array(buffer, moovOffset, 4)[0] << 24) |
+                      (new Uint8Array(buffer, moovOffset + 1, 1)[0] << 16) |
+                      (new Uint8Array(buffer, moovOffset + 2, 1)[0] << 8) |
+                      new Uint8Array(buffer, moovOffset + 3, 1)[0])
+
+    const moovEnd = moovOffset + moovSize
+    let offset = moovOffset + 8
+
+    while (offset + 8 < moovEnd) {
+      const sizeBytes = new Uint8Array(buffer, offset, 4)
+      const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+      const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+      const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+      if (type === 'trak') {
+        // Check if this is a video track
+        if (this.isVideoTrack(offset, offset + size)) {
+          console.log('[MP4Demux] Found video track at offset:', offset)
+          return offset
+        }
+      }
+
+      if (size === 0 || size < 8) break
+      offset += size
+    }
+
+    return -1
+  }
+
+  /**
+   * Check if a trak box is a video track
+   */
+  isVideoTrack(trakStart, trakEnd) {
+    const buffer = this.fullBuffer
+    let offset = trakStart + 8
+
+    while (offset + 8 < trakEnd) {
+      const sizeBytes = new Uint8Array(buffer, offset, 4)
+      const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+      const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+      const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+      if (type === 'mdia') {
+        // Look for hdlr inside mdia
+        const mdiaEnd = offset + size
+        let mdiaOffset = offset + 8
+
+        while (mdiaOffset + 8 < mdiaEnd) {
+          const mdiaSize = ((new Uint8Array(buffer, mdiaOffset, 4)[0] << 24) |
+                           (new Uint8Array(buffer, mdiaOffset + 1, 1)[0] << 16) |
+                           (new Uint8Array(buffer, mdiaOffset + 2, 1)[0] << 8) |
+                           new Uint8Array(buffer, mdiaOffset + 3, 1)[0])
+
+          const mdiaType = String.fromCharCode(
+            new Uint8Array(buffer, mdiaOffset + 4, 1)[0],
+            new Uint8Array(buffer, mdiaOffset + 5, 1)[0],
+            new Uint8Array(buffer, mdiaOffset + 6, 1)[0],
+            new Uint8Array(buffer, mdiaOffset + 7, 1)[0]
+          )
+
+          if (mdiaType === 'hdlr') {
+            const handlerType = String.fromCharCode(
+              new Uint8Array(buffer, mdiaOffset + 16, 1)[0],
+              new Uint8Array(buffer, mdiaOffset + 17, 1)[0],
+              new Uint8Array(buffer, mdiaOffset + 18, 1)[0],
+              new Uint8Array(buffer, mdiaOffset + 19, 1)[0]
+            )
+            return handlerType === 'vide'
+          }
+
+          if (mdiaSize === 0 || mdiaSize < 8) break
+          mdiaOffset += mdiaSize
+        }
+      }
+
+      if (size === 0 || size < 8) break
+      offset += size
+    }
+
+    return false
+  }
+
+  /**
+   * Process extracted samples and send to decoder
+   */
+  processExtractedSamples(samples) {
+    const pesList = []
+
+    for (const sample of samples) {
+      const sampleData = this.sampleExtractor.getSampleData(sample)
+      if (!sampleData) {
+        console.warn('[MP4Demux] Could not get data for sample:', sample.index)
+        continue
+      }
+
+      // Convert to Annex-B format
+      const data = this.convertExtractedSampleToAnnexB(sampleData, sample.is_sync)
+
+      const pts = Math.round(sample.compositionTime * 1000 / sample.timescale)
+      this.maxVideoPTS = Math.max(this.maxVideoPTS, pts)
+
+      pesList.push({
+        PTS: pts,
+        data_byte: data,
+        partEnd: false,
+        lastTS: false
+      })
+
+      // Send samples in batches to avoid overwhelming the decoder
+      if (pesList.length >= 10) {
+        this.decode.push(pesList)
+        pesList.length = 0
+      }
+    }
+
+    // Send remaining samples
+    if (pesList.length > 0) {
+      this.decode.push(pesList)
+    }
+
+    console.log('[MP4Demux] Processed samples, maxVideoPTS:', this.maxVideoPTS)
+  }
+
+  /**
+   * Convert extracted sample data to Annex-B format
+   * This converts from MP4 length-prefixed format to NALU format with start codes
+   */
+  convertExtractedSampleToAnnexB(data, isSyncSample) {
+    const lengthSize = (this.hvcc && this.hvcc.lengthSizeMinusOne) ? (this.hvcc.lengthSizeMinusOne + 1) : 4
+    const units = []
+
+    // Prepend VPS/SPS/PPS for key frames
+    if (isSyncSample && this.hvcc && this.hvcc.nalu_arrays) {
+      this.hvcc.nalu_arrays.forEach(arr => {
+        if ([32, 33, 34].includes(arr.nalu_type)) {
+          arr.forEach(n => {
+            if (n && n.data) {
+              units.push(this.withStartCode(n.data))
+            }
+          })
+        }
+      })
+    }
+
+    // Parse length-prefixed NALUs
+    let offset = 0
+    while (offset + lengthSize <= data.byteLength) {
+      let len = 0
+      for (let i = 0; i < lengthSize; i++) {
+        len = (len << 8) | data[offset + i]
+      }
+      offset += lengthSize
+
+      if (len <= 0 || offset + len > data.byteLength) break
+
+      const nalu = data.subarray(offset, offset + len)
+      units.push(this.withStartCode(nalu))
+      offset += len
+    }
+
+    return this.concatUint8(units)
   }
 
   flush() {
     if (this.mp4boxfile) {
-      this.mp4boxfile.flush()
+      try {
+        this.mp4boxfile.flush()
+      } catch (e) {
+        console.warn('MP4Demux.flush: error', e.message)
+      }
     }
   }
 }
 
 export default MP4Demux
+

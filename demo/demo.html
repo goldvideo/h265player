@@ -12,7 +12,6 @@
     height: 600px;
     /* background-color: #000; */
     margin: 20px 0 0 100px;
-    float:left;
   }
 
   .inline {
@@ -25,9 +24,8 @@
 <body>
   <div id="PlayerWrapper">
     <h3>H.265 Player <b>在线播放器Demo1</b><em class="demo1" id="Demo1">DEMO</em></h3>
+    <input type="button" id="change" value="change media source">
     <div class="play-container"></div>
-    <input type="button" id="change" value="change">
-    <!-- <a href="http://www.baidu.com">baidu.com</a> -->
   </div>
   <br clear="all">
   <br>
@@ -52,21 +50,23 @@
       }
       let el = doc.querySelector('.play-container')
       let player = new GoldPlay(el, {
-        poster: 'http://lf3-static.bytednsdoc.com/obj/eden-cn/nupenuvpxnuvo/xgplayer_doc/poster.jpg',
+        // poster: 'http://lf3-static.bytednsdoc.com/obj/eden-cn/nupenuvpxnuvo/xgplayer_doc/poster.jpg',
+        poster: '../dist/image/goldplay-logo-empty.png',
         // sourceURL: Config.src,
-        sourceURL: 'http://localhost/git/goldvideo/h265player/data/video1/playlist.m3u8',
+        sourceURL: 'http://127.0.0.1:8000/h265player/data/video1/playlist.m3u8',
         type: 'HLS',
         libPath: Config.libPath,
         playBackRate: 1,
         autoPlay: false,
         // debug: true,
         rateList: [
-          {"url":"http://localhost:9011/gitwork/goldplay/h265player/data/video1/playlist.m3u8","id":51,"name":"720P","value":"720"},
-           {"url":"http://localhost:9011/gitwork/goldplay/h265player/data/video3/playlist.m3u8","id":51,"name":"高清","value":"600"}
+          {"url":"http://127.0.0.1:8000/h265player/data/video1/playlist.m3u8","id":51,"name":"720P","value":"720"},
+           {"url":"http://127.0.0.1:8000/h265player/data/video3/playlist.m3u8","id":51,"name":"高清","value":"600"}
         ]
       })
+      
       document.querySelector('#change').onclick = function(){
-        player.changeSrc('http://localhost:9011/gitwork/goldplay/h265player/data/video1/playlist.m3u8')
+        player.changeSrc('http://127.0.0.1:8000/h265player/data/video1/playlist.m3u8')
       }
       // player.destroy()
     })(window, document)

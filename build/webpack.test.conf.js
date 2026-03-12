@@ -21,8 +21,8 @@ module.exports = merge(baseWebpackConfig, {
 
 	performance: {
 		hints: 'warning', // enum
-		maxAssetSize: 200000, // int (in bytes)
-		maxEntrypointSize: 400000, // int (in bytes)
+		maxAssetSize: 500 * 1024, // int (in bytes)
+		maxEntrypointSize: 1024 * 1024, // int (in bytes)
 		assetFilter: function(assetFilename) {
 			// Function predicate that provides asset filenames
 			return assetFilename.endsWith('.css') || assetFilename.endsWith('.js');

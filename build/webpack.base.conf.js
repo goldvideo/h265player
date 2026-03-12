@@ -57,25 +57,15 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.worker\.js$/,
-        use: {
-          loader: 'worker-loader',
-          options: {
-            esModule: false,
-            filename: '[name].[contenthash].worker.js'
-          }
-        }
-      },
-      {
         test: /\.js$/,
-        exclude: /node_modules/,
+        exclude: /(node_modules|bower_components)/,
         use: {
           loader: 'babel-loader',
 					options: {
 						compact: false,
             plugins: [
               'dynamic-import-webpack',
-              // "@babel/plugin-proposal-class-properties",
+              // "@babel/plugin-proposal-class-properties", 
               // "@babel/plugin-transform-runtime"
             ],
             presets: [
@@ -119,8 +109,8 @@ module.exports = {
             loader: 'postcss-loader',
             options: {
               sourceMap: true,
-              postcssOptions: {
-                config: buildPath + '/postcss.config.js'
+              config: {
+                path: buildPath + '/postcss.config.js'
               }
             }
           }
@@ -157,11 +147,6 @@ module.exports = {
 
   stats: 'normal',
   // lets you precisely control what bundle information gets displayed
-
-  // Webpack 5 Web Worker 原生支持
-  experiments: {
-    workers: true
-  },
 
   // devServer: {
   // 	// proxy: { // proxy URLs to backend development server
