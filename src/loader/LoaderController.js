@@ -118,7 +118,11 @@ class LoaderController extends BaseController {
     this.state = state.LOAD_PLAYLIST
     this.events.emit(Events.LoaderPlayListStart, this)
     this.logger.info('switchPlaylist', state[this.state], 'url:', sourceURL)
-    this.loadHLS(callback)
+    if (this.type && this.type.toUpperCase() === 'MP4') {
+      this.loadMP4(callback)
+    } else {
+      this.loadHLS(callback)
+    }
   }
 
   setExeLoader(exeLoader) {
@@ -131,6 +135,7 @@ class LoaderController extends BaseController {
 
   setSourceURL(url) {
     this.exeLoader.setSourceURL(url)
+    this.options.sourceURL = url
   }
 
   getSourceURL() {

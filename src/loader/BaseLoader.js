@@ -23,6 +23,9 @@ class BaseLoader extends BaseClass {
 
   setSourceURL(url) {
     this.sourceURL = url
+    if (this.options) {
+      this.options.sourceURL = url
+    }
   }
 
   getDataManage() {

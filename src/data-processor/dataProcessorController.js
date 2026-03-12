@@ -13,14 +13,23 @@ export default class DataProcessorController extends BaseClass {
   constructor(options) {
     super(options)
     this.type = options.type
+    // 规范化 libPath，确保 Worker importScripts 能拿到绝对路径
     this.libPath = options.libPath
+    if (typeof window !== 'undefined' && this.libPath) {
+      try {
+        const abs = new URL(this.libPath, window.location.href).href
+        this.libPath = abs.endsWith('/') ? abs : abs + '/'
+      } catch (e) {
+        // ignore, keep original
+      }
+    }
     this.player = options.player
     this.init()
   }
   init() {
     let type = this.type
     // TS和MP4都需要初始化Worker
-    this.initNormalWorker()  // 修复拼写: initNornalWorker → initNormalWorker
+    this.initNormalWorker()
     this.bindEvent()
     this.loadjs()
   }
@@ -83,7 +92,7 @@ export default class DataProcessorController extends BaseClass {
   reset() {
     this.isLast = false
     this.processor.terminate()
-    this.initNornalWorker()
+    this.initNormalWorker()
     this.loadjs()
   }
   onFlushEnd(data) {
