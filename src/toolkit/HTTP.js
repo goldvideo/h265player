@@ -334,7 +334,7 @@ class HTTP {
     }
     if (data && data.body) {
       postData.data = data.body
-      if (fileType === 'ts' || fileType === 'video') {
+      if (fileType === 'ts' || fileType === 'video' || fileType === 'mp4') {
         postData.arrayBuffer = await blob2ArrayBuffer(postData.data)
       }
       if (postData.arrayBuffer) {

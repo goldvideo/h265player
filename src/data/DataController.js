@@ -15,14 +15,16 @@ export class DataController extends BaseController {
   dataManage = null
   hlsDataManage = null
   mp4DataManage = null
-  constructor(options) {
+  constructor(options = {}) {
     super()
-    this.options = options
+    // 默认类型为 HLS，避免 type 未定义时调用 toUpperCase 报错
+    this.options = Object.assign({ type: 'HLS' }, options)
     this.type = this.options.type || 'HLS'
   }
 
   setDataManage(options) {
-    switch (options.type.toUpperCase()) {
+    const sourceType = (options.type || 'HLS').toUpperCase()
+    switch (sourceType) {
       case 'HLS':
         this.setHLSDataManage(options)
         this.dataManage = this.hlsDataManage
@@ -94,7 +96,8 @@ export class DataController extends BaseController {
 
   startLoad(startTime) {
     startTime = Math.max(startTime, 0)
-    switch (this.type.toUpperCase()) {
+    const sourceType = (this.type || 'HLS').toUpperCase()
+    switch (sourceType) {
       case 'HLS':
         this.hlsDataManage.startLoad(startTime)
         break
@@ -107,14 +110,14 @@ export class DataController extends BaseController {
   }
 
   clearDataManage() {
-    this.dataManage.clear()
+    if (this.dataManage && this.dataManage.clear) {
+      this.dataManage.clear()
+    }
   }
 
   getDataManage(type, ...args) {
-    if (!type) {
-      return
-    }
-    switch (type.toUpperCase()) {
+    const sourceType = (type || this.type || 'HLS').toUpperCase()
+    switch (sourceType) {
       case 'HLS':
         return this.getHLSDataManage()
       case 'MP4':
