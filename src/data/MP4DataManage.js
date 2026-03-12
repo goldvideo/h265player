@@ -153,8 +153,8 @@ class MP4DataManage extends BaseClass {
 
   /**
    * get buffer from bufferPool and the blob will convert to arrayBuffer
-   * @param {number} time 
-   * @param {Function} callback [optional] 
+   * @param {number} time
+   * @param {Function} callback [optional]
    */
   readBufferByNo(no, callback) {
     if (!this.isValidSegmentNo(no)) {
@@ -165,6 +165,18 @@ class MP4DataManage extends BaseClass {
     callback = callback || function(buffer) {
       this.events.emit(Events.DataManageRead, buffer)
     }
+
+    // 对于MP4，如果buffer已经在bufferPool中，立即发出firstData事件
+    const isMP4 = (this.options.type || '').toUpperCase() === 'MP4'
+    if (isMP4 && no === 1) {
+      const buffer = this.bufferPool.getByKeyValue('no', 1)[0]
+      if (buffer) {
+        // Buffer已存在（如从暂停恢复），立即发出firstData
+        this.logger.info('readBufferByNo', 'MP4 buffer cached, emit firstData', 'no:', no)
+        this.events.emit(Events.DataManageFirstLoaded, buffer, 0)
+      }
+    }
+
     this.getBlobByNo(no, callback)
   }
 
