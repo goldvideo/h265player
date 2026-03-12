@@ -47,7 +47,10 @@ class MP4DataManage extends BaseClass {
         this.removeBufferByNo(buffer.no)
         return
       }
-      if (time === this.startLoadTime) {
+      // MP4: 对于整文件加载，检查是否是第一次加载（segment.no === 1）
+      const isMP4 = (this.options.type || '').toUpperCase() === 'MP4'
+      const isFirstLoad = isMP4 ? (segment.no === 1) : (time === this.startLoadTime)
+      if (isFirstLoad) {
         this.events.emit(Events.DataManageFirstLoaded, buffer, time)
       }
     })
@@ -81,7 +84,10 @@ class MP4DataManage extends BaseClass {
     if (segment.no === this.options.player.currentIndex) {
       this.readBufferByNo(segment.no)
     }
-    if (this.segmentPool.length > 0 && segment.no < this.segmentPool.getLast().no) {
+
+    // MP4 是整文件加载，不要像 HLS 那样链式预取下一个分片，否则会重复拉取整个文件导致内存/崩溃
+    const isMP4 = (this.options.type || '').toUpperCase() === 'MP4'
+    if (!isMP4 && this.segmentPool.length > 0 && segment.no < this.segmentPool.getLast().no) {
       this.loadSegmentByNo(segment.no + 1)
     }
   }

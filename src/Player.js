@@ -101,6 +101,16 @@ class Player extends BaseClass {
     this.controlBarAutoHide = options.controlBarAutoHide !== undefined ? options.controlBarAutoHide : this.controlBarAutoHide
     this.#libPath =
       options.libPath !== undefined ? options.libPath : this.#libPath
+    // 规范化 libPath 为绝对路径，防止 WebWorker importScripts 相对路径失效
+    if (typeof window !== 'undefined') {
+      try {
+        const abs = new URL(this.#libPath, window.location.href).href
+        this.#libPath = abs.endsWith('/') ? abs : abs + '/'
+      } catch (e) {
+        // ignore URL errors, keep original
+      }
+    }
+    this.options.libPath = this.#libPath
     this.preload =
       options.preload === undefined ? this.preload : options.preload
     this.startTime = options.startTime === undefined ? this.startTime : options.startTime
@@ -117,7 +127,8 @@ class Player extends BaseClass {
   setDataController () {
     this.dataController = DataController.getInstance({
       player: this,
-      events: this.options.events
+      events: this.options.events,
+      type: this.options.type || 'HLS'
     })
   }
   setDataManage () {
@@ -267,6 +278,22 @@ class Player extends BaseClass {
       let sourceData = data.dataManage.sourceData
       this.duration = sourceData.duration
       this.tsNumber = sourceData.length
+      this.streamController.setBaseInfo({
+        duration: this.duration,
+        tsNumber: this.tsNumber
+      })
+      this.dataController.startLoad(this.startTime)
+      this.setStartTime(this.originStartTime)
+    })
+    // MP4: 元数据加载完成后启动加载
+    this.events.on(Events.LoaderMP4Loaded, data => {
+      const sourceData = this.dataController.getMP4SourceData()
+      if (!sourceData) {
+        this.logger.error('bindEvent', 'mp4 source data missing')
+        return
+      }
+      this.duration = sourceData.duration
+      this.tsNumber = sourceData.segments ? sourceData.segments.length : 0
       this.streamController.setBaseInfo({
         duration: this.duration,
         tsNumber: this.tsNumber
@@ -464,7 +491,9 @@ class Player extends BaseClass {
       this.changing = false
       this.play()
     }
-    if (this.seeking || (this.autoPlay && !this.paused)) {
+    if (this.seeking) {
+      this.play()
+    } else if (this.autoPlay && !this.changing) {
       this.play()
     }
   }
