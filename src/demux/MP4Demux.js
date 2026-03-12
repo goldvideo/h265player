@@ -1,219 +1,178 @@
+/* global MP4Box */
+
 /**
- * @copyright: Copyright (C) 2021
- * @desc: MP4 packet demux
- * @author: Jarry
- * @file: MP4Demux.js
+ * MP4 demuxer (H.265) using mp4box.js loaded at runtime from libPath.
  */
-
-import { MP4Demux as DemuxerMP4, Events as DemuxerEvents } from 'demuxer'
-import { AV_TIME_BASE_Q } from '../config/Config.js'
-
 class MP4Demux {
-  maxAudioPTS = 0
-  maxVideoPTS = 0
-
-  constructor(decode) {
+  constructor(decode, libPath) {
     if (!decode) {
-      console.error('class MP4Demux need pass decode params')
+      console.error('MP4Demux requires decode instance')
       return
     }
-    this.init()
-    this.dataArray = []
-    this.videoArray = []
-    this.audioArray = []
     this.decode = decode
+    this.libPath = libPath || ''
+    this.videoTrackId = null
+    this.audioTrackId = null
+    this.fileStart = 0
+    this.hvcc = null
+    this.mp4boxfile = null
+    this.maxVideoPTS = 0
+    this.audioNotified = false
+    this.ensureMP4Box()
+    this.init()
+  }
+
+  ensureMP4Box() {
+    if (typeof MP4Box === 'undefined') {
+      try {
+        // use bundled IIFE to support importScripts
+        importScripts(this.libPath + 'mp4box.iife.js')
+      } catch (e) {
+        console.error('Failed to load mp4box', e, 'libPath:', this.libPath)
+      }
+    }
   }
 
   init() {
-    try {
-      this.demuxer = new DemuxerMP4({
-        enableWorker: false,
-        debug: false
-      })
-
-      this.demuxer.on(DemuxerEvents.DEMUX_DATA, event => {
-        if (event instanceof Array) {
-          console.log('MP4Demux DEMUX_DATA array')
-          this.dataArray.push(event)
-          this.demuxed(this.dataArray)
-          this.dataArray = []
-        } else {
-          this.dataArray.push(event)
-        }
-      })
-
-      this.demuxer.on(DemuxerEvents.DONE, event => {
-        let pes = {}
-        this.demuxed(this.dataArray)
-        this.dataArray = []
-        // one mp4 demux finished
-        this.demuxCallback && this.demuxCallback()
-      })
-
-      this.demuxer.on(DemuxerEvents.ERROR, event => {
-        console.error('MP4Demux error:', event)
-      })
-
-    } catch (error) {
-      console.error('MP4Demux init error:', error)
-    }
-  }
-
-  /**
-   * 推送数据到demuxer
-   */
-  push(buffer) {
-    if (!this.demuxer) {
-      console.error('MP4Demux not initialized')
+    if (typeof MP4Box === 'undefined') {
+      console.error('MP4Box not available')
       return
     }
-    try {
-      this.demuxer.push(buffer)
-    } catch (error) {
-      console.error('MP4Demux push error:', error)
+    this.mp4boxfile = MP4Box.createFile()
+
+    this.mp4boxfile.onReady = (info) => {
+      if (info.videoTracks && info.videoTracks.length) {
+        const trak = this.mp4boxfile.moov.traks.find(
+          t => t.tkhd.track_id === info.videoTracks[0].id
+        )
+        const entry = trak.mdia.minf.stbl.stsd.entries[0]
+        this.hvcc = entry.hvcC
+        this.videoTrackId = info.videoTracks[0].id
+        this.mp4boxfile.setExtractionOptions(this.videoTrackId, null, {
+          nbSamples: info.videoTracks[0].nb_samples,
+          rapAlignment: true
+        })
+      }
+
+      if (info.audioTracks && info.audioTracks.length) {
+        this.audioTrackId = info.audioTracks[0].id
+        this.mp4boxfile.setExtractionOptions(this.audioTrackId, null, {
+          nbSamples: info.audioTracks[0].nb_samples,
+          rapAlignment: true
+        })
+      }
+      this.mp4boxfile.start()
+    }
+
+    this.mp4boxfile.onSamples = (id, user, samples) => {
+      if (id === this.videoTrackId) {
+        this.handleVideoSamples(samples)
+      } else if (id === this.audioTrackId) {
+        this.handleAudioSamples(samples)
+      }
+    }
+
+    this.mp4boxfile.onError = (e) => {
+      console.error('MP4Box error:', e)
     }
   }
 
-  /**
-   * 标记最后一个包
-   */
-  flush() {
-    if (this.demuxer && typeof this.demuxer.flush === 'function') {
-      this.demuxer.flush()
+  handleVideoSamples(samples) {
+    if (!samples || !samples.length) return
+    const pesList = []
+    samples.forEach(sample => {
+      const pts = Math.round(sample.cts / sample.timescale * 1000)
+      const data = this.convertSampleToAnnexB(sample)
+      this.maxVideoPTS = Math.max(this.maxVideoPTS, pts)
+      pesList.push({
+        PTS: pts,
+        data_byte: data,
+        partEnd: false,
+        lastTS: false
+      })
+    })
+    if (pesList.length) {
+      this.decode.push(pesList)
     }
-    // flush 时把残余数据送出
-    if (this.videoArray.length > 0) {
-      this.decode.push(this.videoArray)
-      this.videoArray = []
-    }
-    if (this.audioArray.length > 0) {
+  }
+
+  handleAudioSamples() {
+    // Current audio pipeline expects ADTS; mp4 provides raw AAC.
+    // Notify end to avoid waiting.
+    if (!this.audioNotified) {
       self.postMessage({
         type: 'demuxedAAC',
-        data: this.audioArray
+        data: [],
+        audioEnd: true
       })
-      this.audioArray = []
+      this.audioNotified = true
     }
   }
 
-  /**
-   * 处理解复用的数据
-   */
-  demuxed(dataArray) {
-    if (!dataArray || !dataArray.length) {
-      return
-    }
+  convertSampleToAnnexB(sample) {
+    const lengthSize = (sample.description.hvcC.lengthSizeMinusOne || 3) + 1
+    const data = sample.data
+    let offset = 0
+    const units = []
 
-    dataArray.forEach(data => {
-      if (!data) {
-        return
-      }
-
-      // 处理视频数据
-      if (data.video) {
-        data.video.forEach(videoData => {
-          if (!videoData) return
-
-          // 转换PTS时间戳（从90kHz到毫秒）
-          // 90kHz to milliseconds: 除以90
-          if (videoData.pts !== undefined && videoData.pts !== null) {
-            videoData.pts = Math.round(videoData.pts / 90)
-          }
-          if (videoData.dts !== undefined && videoData.dts !== null) {
-            videoData.dts = Math.round(videoData.dts / 90)
-          }
-          if (videoData.duration !== undefined && videoData.duration !== null) {
-            videoData.duration = Math.round(videoData.duration / 90)
-          }
-
-          this.maxVideoPTS = Math.max(this.maxVideoPTS, videoData.pts || 0)
-          this.videoArray.push(videoData)
-        })
-
-        if (this.videoArray.length > 0) {
-          // 推送视频数据到解码器
-          this.decode.push(this.videoArray)
-          this.videoArray = []
-        }
-      }
-
-      // 处理音频数据
-      if (data.audio) {
-        data.audio.forEach(audioData => {
-          if (!audioData) return
-
-          // 转换PTS时间戳（从90kHz到毫秒）
-          // 90kHz to milliseconds: 除以90
-          if (audioData.pts !== undefined && audioData.pts !== null) {
-            audioData.pts = Math.round(audioData.pts / 90)
-          }
-          if (audioData.dts !== undefined && audioData.dts !== null) {
-            audioData.dts = Math.round(audioData.dts / 90)
-          }
-          if (audioData.duration !== undefined && audioData.duration !== null) {
-            audioData.duration = Math.round(audioData.duration / 90)
-          }
-
-          this.maxAudioPTS = Math.max(this.maxAudioPTS, audioData.pts || 0)
-          this.audioArray.push(audioData)
-        })
-
-        if (this.audioArray.length > 0) {
-          // 发送音频数据到主线程
-          self.postMessage({
-            type: 'demuxedAAC',
-            data: this.audioArray
+    // prepend VPS/SPS/PPS for key frames
+    if (sample.is_sync && this.hvcc && this.hvcc.nalu_arrays) {
+      this.hvcc.nalu_arrays.forEach(arr => {
+        if ([32, 33, 34].includes(arr.nalu_type)) {
+          arr.forEach(n => {
+            if (n && n.data) {
+              units.push(this.withStartCode(n.data))
+            }
           })
-          this.audioArray = []
         }
+      })
+    }
+
+    while (offset + lengthSize <= data.byteLength) {
+      let len = 0
+      for (let i = 0; i < lengthSize; i++) {
+        len = (len << 8) | data[offset + i]
       }
+      offset += lengthSize
+      if (len <= 0 || offset + len > data.byteLength) break
+      const nalu = data.subarray(offset, offset + len)
+      units.push(this.withStartCode(nalu))
+      offset += len
+    }
+    return this.concatUint8(units)
+  }
+
+  withStartCode(nalu) {
+    const sc = new Uint8Array([0, 0, 0, 1])
+    const out = new Uint8Array(sc.byteLength + nalu.byteLength)
+    out.set(sc, 0)
+    out.set(nalu, sc.byteLength)
+    return out
+  }
+
+  concatUint8(list) {
+    const total = list.reduce((sum, u) => sum + u.byteLength, 0)
+    const out = new Uint8Array(total)
+    let offset = 0
+    list.forEach(u => {
+      out.set(u, offset)
+      offset += u.byteLength
     })
+    return out
   }
 
-  /**
-   * 获取视频数据
-   */
-  getVideoData() {
-    const data = this.videoArray
-    this.videoArray = []
-    return data
+  push(buffer) {
+    if (!buffer || !buffer.byteLength || !this.mp4boxfile) return
+    const ab = buffer instanceof ArrayBuffer ? buffer : buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+    ab.fileStart = this.fileStart
+    this.fileStart += ab.byteLength
+    this.mp4boxfile.appendBuffer(ab)
+    this.mp4boxfile.flush()
   }
 
-  /**
-   * 获取音频数据
-   */
-  getAudioData() {
-    const data = this.audioArray
-    this.audioArray = []
-    return data
-  }
-
-  /**
-   * 设置demux完成回调
-   */
-  setDemuxCallback(callback) {
-    this.demuxCallback = callback
-  }
-
-  /**
-   * 获取最大视频PTS
-   */
-  getMaxVideoPTS() {
-    return this.maxVideoPTS
-  }
-
-  /**
-   * 获取最大音频PTS
-   */
-  getMaxAudioPTS() {
-    return this.maxAudioPTS
-  }
-
-  /**
-   * 销毁demuxer
-   */
-  destroy() {
-    if (this.demuxer) {
-      this.demuxer = null
+  flush() {
+    if (this.mp4boxfile) {
+      this.mp4boxfile.flush()
     }
   }
 }
