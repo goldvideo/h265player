@@ -80,6 +80,8 @@ class MP4Loader extends BaseLoader {
     else if (typeof data.name === 'number') {
       this.logger.info('handleWorkerMessage', 'read success', 'segment no:', data.name)
       this.state = state.IDLE
+      // MP4DataManage expects arrayBuffer property, add it to data
+      data.arrayBuffer = body
       this.events.emit(Events.LoaderLoaded, data, this.currentSegment, this.currentType, this.currentTime)
     }
     else {
