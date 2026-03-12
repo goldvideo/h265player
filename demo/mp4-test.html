@@ -1,57 +1,399 @@
-<!Doctype html>
-<html xmlns=http://www.w3.org/1999/xhtml> <head>
-<meta http-equiv=Content-Type content="text/html;charset=utf-8">
-<meta http-equiv=X-UA-Compatible content="IE=edge,chrome=1">
-<meta content=always name=referrer>
-<link rel="shortcut icon" href=/favicon.ico type=image/x-icon> <title>H.265在线播放器 MP4测试</title>
-<link rel="stylesheet" href="../dist/goldplay-h265.css">
-<script src="../dist/goldplay-h265-sdk.js"></script>
-<style>
-  .play-container {
-    width: 800px;
-    height: 600px;
-    margin: 20px 0 0 100px;
-    float:left;
-  }
-</style>
-</head>
-
-<body>
-  <div id="PlayerWrapper">
-    <h1>H.265 Player MP4 测试</h1>
-    <div class="play-container"></div>
-  </div>
-  <br clear="all">
-  <br>
-  <script>
-    (function (win, doc) {
-      const Config = {
-        get basePath() {
-          let path = win.location.origin
-          let pathname = win.location.pathname
-          let demoIdx = pathname.lastIndexOf('/demo/')
-          return path + pathname.substr(0, demoIdx)
-        },
-        get buildPath() {
-          return this.basePath + '/dist/'
-        },
-        get libPath() {
-          return this.buildPath + 'lib/'
-        },
-        get src() {
-          return this.basePath + '/data/mp4/tractor_h265.mp4'
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoldPlay H265 播放器 - MP4 支持测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-      }
-      let el = doc.querySelector('.play-container')
-      let player = new GoldPlay(el, {
-        sourceURL: Config.src,
-        type: 'MP4',
-        libPath: Config.libPath,
-        playBackRate: 1,
-        autoPlay: true,
-      })
-    })(window, document)
-  </script>
-</body>
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            line-height: 1.6;
+        }
+
+        .player-wrapper {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .player-container {
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+        }
+
+        .code-block {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-top: 10px;
+            white-space: pre-wrap;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #2196F3;
+            padding-bottom: 10px;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #d32f2f;
+            font-weight: 500;
+        }
+    </style>
+    <link rel="stylesheet" href="../dist/goldplay-h265.css">
+    <script src="../dist/goldplay-h265-sdk.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 GoldPlay H265 播放器 - MP4 支持测试</h1>
+
+        <div class="info-box">
+            <strong>新功能：</strong>本版本除支持 HLS 流外，现已支持 MP4 格式！<br>
+            播放器会自动检测媒体类型并使用相应的协议处理器。
+        </div>
+
+        <!-- 播放器部分 -->
+        <div class="player-wrapper">
+            <div id="goldplay-container" class="player-container"></div>
+        </div>
+
+        <!-- 文档部分 -->
+        <div class="section">
+            <h2>📖 使用指南</h2>
+
+            <h3 style="margin-top: 15px; color: #555;">初始化</h3>
+            <p style="margin: 10px 0;">初始化支持 MP4 的播放器：</p>
+            <div class="code-block">
+let player = new GoldPlay(document.getElementById('goldplay-container'), {
+    sourceURL: 'http://127.0.0.1:8000/h265player/data/mp4/song_h265.mp4',  // MP4 文件 URL
+    type: 'MP4',                                   // 指定 MP4 类型
+    autoPlay: true,
+    libPath: './dist/lib/',                       // WASM 库路径
+    poster: 'http://127.0.0.1:8000/h265player/data/mp4/poster.jpg'      // 可选的封面图
+});
+            </div>
+
+            <h3 style="margin-top: 20px; color: #555;">支持的媒体类型</h3>
+            <ul class="feature-list">
+                <li>HLS (.m3u8) - 原始格式</li>
+                <li>MP4 (.mp4) - 新增支持</li>
+                <li>H.265/HEVC 视频编解码器</li>
+                <li>AAC 音频编解码器</li>
+            </ul>
+
+            <h3 style="margin-top: 20px; color: #555;">主要特性</h3>
+            <ul class="feature-list">
+                <li>根据文件扩展名自动检测类型</li>
+                <li>为 HLS 和 MP4 格式提供无缝播放</li>
+                <li>现有 HLS 接口无需任何改变</li>
+                <li>与所有现有控件和功能兼容</li>
+                <li>使用 HTTP Range 请求高效流媒体传输</li>
+            </ul>
+        </div>
+
+        <!-- MP4 配置部分 -->
+        <div class="section">
+            <h2>⚙️ MP4 配置选项</h2>
+
+            <p style="margin: 10px 0;">使用 MP4 文件时，可以配置以下选项：</p>
+
+            <div class="code-block">
+const mp4Options = {
+    sourceURL: 'path/to/video.mp4',      // 必需：MP4 文件 URL
+    type: 'MP4',                          // 必需：设置为 'MP4'
+    autoPlay: true,                       // 自动开始播放
+    preload: true,                        // 预加载元数据
+    startTime: 0,                         // 开始位置（秒）
+    poster: 'path/to/poster.jpg',        // 封面图
+    libPath: './dist/lib/',              // 解码器库路径
+    maxBufferLength: 5000,               // 最大缓冲时长（毫秒）
+    controlBarAutoHide: true,            // 自动隐藏控制栏
+    controlBarAutoHideTime: 3,           // 自动隐藏时间（秒）
+    processURL: (url, segment) => url   // 可选：请求前处理 URL
+};
+
+let player = new GoldPlay(container, mp4Options);
+            </div>
+
+            <h3 style="margin-top: 20px; color: #555;">播放器 API</h3>
+            <div class="code-block">
+// 播放控制
+player.play()                  // 开始播放
+player.pause()                 // 暂停播放
+player.stop()                  // 停止并重置
+player.seeking(time)           // 跳转到指定时间（秒）
+
+// 获取信息
+player.duration               // 总时长（秒）
+player.currentTime            // 当前位置（秒）
+player.paused                 // 是否暂停？
+player.buffer()              // 获取缓冲范围 [start, end]
+
+// 切换媒体
+player.switchURL('new-url.mp4') // 切换到另一个 MP4
+player.switchURL('stream.m3u8')  // 或切换到 HLS
+            </div>
+        </div>
+
+        <!-- 技术细节部分 -->
+        <div class="section">
+            <h2>🔧 实现细节</h2>
+
+            <h3 style="margin-top: 15px; color: #555;">架构</h3>
+            <p style="margin: 10px 0;">MP4 支持通过以下组件实现：</p>
+
+            <div class="code-block">
+src/
+├── toolkit/
+│   └── MP4Parser.js         // MP4 元数据提取
+├── loader/
+│   └── MP4Loader.js         // MP4 文件加载
+├── demux/
+│   └── MP4Demux.js          // MP4 解封装
+└── data-processor/
+    └── dataProcessor.js     // 更新以支持 MP4
+            </div>
+
+            <h3 style="margin-top: 20px; color: #555;">工作原理</h3>
+            <ol style="margin: 10px 0; margin-left: 20px; line-height: 1.8;">
+                <li>
+                    <strong>类型检测：</strong>播放器从 URL 或选项中检测媒体类型
+                </li>
+                <li>
+                    <strong>元数据加载：</strong>MP4Parser 读取文件头（moov 原子）以提取时长、分辨率和轨道信息
+                </li>
+                <li>
+                    <strong>分段处理：</strong>文件被逻辑分为 2 秒的段进行流传输
+                </li>
+                <li>
+                    <strong>解封装：</strong>MP4Demux 分离视频和音频流
+                </li>
+                <li>
+                    <strong>解码：</strong>使用现有解码器对 H.265 视频和 AAC 音频进行解码
+                </li>
+                <li>
+                    <strong>播放：</strong>视频渲染到 Canvas，音频通过 Web Audio API 播放
+                </li>
+            </ol>
+        </div>
+
+        <!-- 测试文件部分 -->
+        <div class="section">
+            <h2>🧪 使用示例文件测试</h2>
+
+            <p style="margin: 10px 0; color: #d32f2f;">
+                <strong>注意：</strong>请将以下示例 URL 替换为服务器上实际的 MP4 文件。
+            </p>
+
+            <div class="code-block">
+// 使用本地 MP4 文件测试
+const testURL = 'http://localhost:8000/sample.mp4';
+
+// 或使用公开测试文件（如果可用）
+// 确保正确配置 CORS 头：
+// Access-Control-Allow-Origin: *
+// Accept-Ranges: bytes
+            </div>
+
+            <h3 style="margin-top: 20px; color: #555;">服务器要求</h3>
+            <ul class="feature-list">
+                <li>启用 CORS 头（Access-Control-Allow-Origin）</li>
+                <li>支持 HTTP Range 请求（Accept-Ranges 头）</li>
+                <li>返回正确的 Content-Length 头</li>
+                <li>支持 moov 原子在 MP4 文件的开头（推荐）</li>
+            </ul>
+        </div>
+
+        <!-- 兼容性部分 -->
+        <div class="section">
+            <h2>🌐 浏览器兼容性</h2>
+
+            <p style="margin: 10px 0;">MP4 支持需要：</p>
+            <ul class="feature-list">
+                <li>WebAssembly 支持（H.265 解码器）</li>
+                <li>Web Audio API（用于音频播放）</li>
+                <li>Canvas API（用于视频渲染）</li>
+                <li>ArrayBuffer 和类型化数组</li>
+                <li>现代浏览器（Chrome、Firefox、Safari、Edge）</li>
+            </ul>
+        </div>
+
+        <!-- 故障排除部分 -->
+        <div class="section">
+            <h2>⚠️ 故障排除</h2>
+
+            <h3 style="margin-top: 15px; color: #555;">常见问题</h3>
+
+            <div style="margin: 15px 0;">
+                <strong>问题：播放器无法加载 MP4</strong>
+                <div style="background: #f5f5f5; padding: 10px; margin-top: 5px; border-radius: 4px;">
+                    ✓ 验证 URL 正确且启用了 CORS<br>
+                    ✓ 检查浏览器控制台的错误信息<br>
+                    ✓ 确保 MP4 文件有正确的结构，包含 moov 原子<br>
+                    ✓ 验证 libPath 指向正确的解码器库
+                </div>
+            </div>
+
+            <div style="margin: 15px 0;">
+                <strong>问题：音视频不同步</strong>
+                <div style="background: #f5f5f5; padding: 10px; margin-top: 5px; border-radius: 4px;">
+                    ✓ 确保 MP4 文件有有效的 PTS 时间戳<br>
+                    ✓ 检查网络稳定性<br>
+                    ✓ 验证音频编解码器是 AAC（其他格式可能不受支持）
+                </div>
+            </div>
+
+            <div style="margin: 15px 0;">
+                <strong>问题：快进不工作</strong>
+                <div style="background: #f5f5f5; padding: 10px; margin-top: 5px; border-radius: 4px;">
+                    ✓ 验证服务器支持 HTTP Range 请求<br>
+                    ✓ 检查 MP4 文件元数据是否正确解析<br>
+                    ✓ 确保 MP4 文件包含快进目标的关键帧
+                </div>
+            </div>
+        </div>
+
+        <!-- API 文档 -->
+        <div class="section">
+            <h2>📚 完整 API 参考</h2>
+
+            <div class="code-block">
+// 初始化
+const player = new GoldPlay(container, options)
+
+// 播放控制
+player.play()
+player.pause()
+player.stop()
+player.seeking(time)              // 快进到指定时间（秒）
+player.setPlaybackRate(rate)       // 设置播放速度（0.5x 到 3x）
+player.setVolume(volume)           // 设置音量（0 到 1）
+player.muted = true/false          // 静音/取消静音
+
+// 获取信息
+player.duration                    // 总时长（秒）
+player.currentTime                 // 当前播放位置
+player.paused                      // 布尔值 - 是否暂停
+player.buffer()                    // 获取缓冲时间范围 [start, end]
+player.volume                      // 当前音量（0 到 1）
+
+// 媒体切换
+player.switchURL(url)              // 切换到另一个媒体文件（MP4 或 HLS）
+
+// 事件
+player.events.on('play', () => {})
+player.events.on('pause', () => {})
+player.events.on('seek', () => {})
+player.events.on('ended', () => {})
+player.events.on('error', (error) => {})
+
+// 清理
+player.destroy()                   // 销毁播放器实例
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #999; font-size: 14px;">
+            <p>GoldPlay H265 播放器 - MP4 支持测试套件</p>
+            <p style="font-size: 12px; margin-top: 10px;">
+                更多信息请访问项目仓库或文档。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        (function (win, doc) {
+            const Config = {
+                get basePath() {
+                    let path = win.location.origin
+                    let pathname = win.location.pathname
+                    let demoIdx = pathname.lastIndexOf('/demo/')
+                    return path + pathname.substr(0, demoIdx)
+                },
+                get buildPath() {
+                    return this.basePath + '/dist/'
+                },
+                get libPath() {
+                    return this.buildPath + 'lib/'
+                },
+                get src() {
+                    return this.basePath + '/data/mp4/tractor_h265.mp4'
+                }
+            }
+            let el = doc.getElementById('goldplay-container')
+            let player = new GoldPlay(el, {
+                sourceURL: Config.src,
+                type: 'MP4',
+                libPath: Config.libPath,
+                playBackRate: 1,
+                autoPlay: true,
+            })
+        })(window, document)
+    </script>
+</body>
 </html>
