@@ -15,8 +15,11 @@ let logger = Logger.get('HTTP.js', { level: 2 })
 const blob2ArrayBuffer = async blob => {
   if (blob instanceof Blob) {
     const arrayBuffer = await new Response(blob).arrayBuffer()
-    return new Uint8Array(arrayBuffer, 0)
+    return arrayBuffer  // Return ArrayBuffer directly, not Uint8Array
   }
+  // If not a Blob, try to handle it
+  console.warn('blob2ArrayBuffer received non-Blob object:', blob)
+  return null
 }
 
 function setHeaders({
@@ -140,7 +143,8 @@ function handleResponse(response, fileType) {
   const reader = clone.body.getReader()
   let bytesReceived = 0
   const fetchDone = () => {
-    if (fileType === 'ts' || fileType === 'video') {
+    // MP4 files must be returned as blob for binary data handling
+    if (fileType === 'ts' || fileType === 'video' || fileType === 'mp4') {
       return parseResponse(response, 'blob')
     }
     if (type.includes('json')) return parseResponse(response, 'json')
@@ -336,16 +340,19 @@ class HTTP {
       postData.data = data.body
       if (fileType === 'ts' || fileType === 'video' || fileType === 'mp4') {
         postData.arrayBuffer = await blob2ArrayBuffer(postData.data)
+        if (fileType === 'mp4') {
+          console.log('[HTTP] MP4 file loaded:', {
+            blobSize: data.body.size,
+            arrayBufferSize: postData.arrayBuffer?.byteLength
+          })
+        }
       }
       if (postData.arrayBuffer) {
-        // For MP4, don't transfer the buffer to preserve it for multiple reads
-        // Only transfer for ts/video formats that are consumed once
-        if (fileType === 'mp4') {
-          self.postMessage(postData)
-        } else {
-          self.postMessage(postData, [postData.arrayBuffer.buffer])
-        }
+        // Transfer the buffer to avoid data corruption from copying
+        // The receiver (dataProcessor) will read the buffer and then it's no longer needed
+        self.postMessage(postData, [postData.arrayBuffer])
       } else {
+        console.warn('[HTTP] No arrayBuffer for:', fileType)
         self.postMessage(postData)
       }
     } else {

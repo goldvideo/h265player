@@ -15,6 +15,8 @@ self.decode = new Decode()
 self.demuxer = new TsDemux(self.decode)
 self.mp4Demuxer = null
 
+let workerLibPath = ''
+
 export default self => {
   self.onmessage = function(event) {
     let data = event.data
@@ -27,8 +29,13 @@ export default self => {
       case 'startDemux':
         if (mediaType === 'mp4') {
           // MP4 demux
+          console.log('[dataProcessor] Received MP4 data:', {
+            bufferByteLength: buffer?.byteLength,
+            bufferType: buffer?.constructor?.name,
+            isLast: isLast
+          })
           if (!self.mp4Demuxer) {
-            self.mp4Demuxer = new MP4Demux(self.decode)
+            self.mp4Demuxer = new MP4Demux(self.decode, workerLibPath)
           }
           self.mp4Demuxer.isLast = isLast
           self.mp4Demuxer.push(buffer)
@@ -39,6 +46,8 @@ export default self => {
         }
         break
       case 'loadwasm':
+        workerLibPath = data.libPath || ''
+        console.log('[dataProcessor] Loading WASM from:', workerLibPath)
         self.decode.loadWASM(event)
         break
       case 'flush':
@@ -47,4 +56,3 @@ export default self => {
     }
   }
 }
-

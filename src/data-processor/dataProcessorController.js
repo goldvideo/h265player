@@ -120,14 +120,15 @@ export default class DataProcessorController extends BaseClass {
     if (data && data.arrayBuffer) {
       // 根据player的type确定媒体类型
       const mediaType = this.player.options && this.player.options.type ? this.player.options.type.toLowerCase() : 'ts'
-      // 处理 ArrayBuffer 或 TypedArray
-      const buffer = data.arrayBuffer instanceof ArrayBuffer ? data.arrayBuffer : data.arrayBuffer.buffer
+
+      // Always transfer the buffer to avoid data corruption from copying
+      // The demuxer only reads each buffer once
       this.processor.postMessage({
         type: 'startDemux',
         data: data.arrayBuffer,
         isLast: this.isLast,
         mediaType: mediaType
-      }, [buffer])
+      }, [data.arrayBuffer])
     } else {
       this.logger.error('onStartDemux', 'data is null', 'data:', data)
     }

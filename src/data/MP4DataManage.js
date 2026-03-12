@@ -127,6 +127,11 @@ class MP4DataManage extends BaseClass {
     if (!data) {
       return
     }
+    // Ensure arrayBuffer exists and has valid data
+    if (!data.arrayBuffer) {
+      console.error('MP4DataManage.createBuffer: arrayBuffer is missing', data)
+      return
+    }
     const buffer = {
       start: segment.start,
       end: segment.end,
