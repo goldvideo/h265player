@@ -162,12 +162,47 @@ class MP4Demux {
   }
 
   push(buffer) {
-    if (!buffer || !buffer.byteLength || !this.mp4boxfile) return
-    const ab = buffer instanceof ArrayBuffer ? buffer : buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+    if (!buffer || !this.mp4boxfile) return
+
+    // Convert various buffer types to ArrayBuffer
+    let ab = null
+    if (buffer instanceof ArrayBuffer) {
+      ab = buffer
+    } else if (buffer instanceof Uint8Array || ArrayBuffer.isView(buffer)) {
+      // Handle TypedArrays and other ArrayBufferView objects
+      // Make sure we have the underlying ArrayBuffer
+      try {
+        // Try to get the underlying buffer
+        ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+      } catch (e) {
+        // If buffer is detached or inaccessible, log error
+        console.error('MP4Demux: Cannot access buffer.buffer, trying to copy data', e)
+        // Create a new ArrayBuffer and copy the data
+        if (buffer.byteLength > 0) {
+          ab = new ArrayBuffer(buffer.byteLength)
+          new Uint8Array(ab).set(new Uint8Array(buffer))
+        } else {
+          return
+        }
+      }
+    } else if (buffer.buffer instanceof ArrayBuffer) {
+      // Handle objects with .buffer property
+      ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+    } else {
+      console.error('MP4Demux: Unsupported buffer type', buffer)
+      return
+    }
+
+    if (!ab || ab.byteLength === 0) return
+
     ab.fileStart = this.fileStart
     this.fileStart += ab.byteLength
-    this.mp4boxfile.appendBuffer(ab)
-    this.mp4boxfile.flush()
+    try {
+      this.mp4boxfile.appendBuffer(ab)
+      this.mp4boxfile.flush()
+    } catch (error) {
+      console.error('MP4Demux: Error appending buffer:', error)
+    }
   }
 
   flush() {

@@ -338,7 +338,13 @@ class HTTP {
         postData.arrayBuffer = await blob2ArrayBuffer(postData.data)
       }
       if (postData.arrayBuffer) {
-        self.postMessage(postData, [postData.arrayBuffer.buffer])
+        // For MP4, don't transfer the buffer to preserve it for multiple reads
+        // Only transfer for ts/video formats that are consumed once
+        if (fileType === 'mp4') {
+          self.postMessage(postData)
+        } else {
+          self.postMessage(postData, [postData.arrayBuffer.buffer])
+        }
       } else {
         self.postMessage(postData)
       }
