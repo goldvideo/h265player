@@ -28,8 +28,7 @@ class MP4Demux {
     try {
       this.demuxer = new DemuxerMP4({
         enableWorker: false,
-        debug: false,
-        onlyDemuxElementary: true
+        debug: false
       })
 
       this.demuxer.on(DemuxerEvents.DEMUX_DATA, event => {
@@ -82,6 +81,18 @@ class MP4Demux {
     if (this.demuxer && typeof this.demuxer.flush === 'function') {
       this.demuxer.flush()
     }
+    // flush 时把残余数据送出
+    if (this.videoArray.length > 0) {
+      this.decode.push(this.videoArray)
+      this.videoArray = []
+    }
+    if (this.audioArray.length > 0) {
+      self.postMessage({
+        type: 'demuxedAAC',
+        data: this.audioArray
+      })
+      this.audioArray = []
+    }
   }
 
   /**
@@ -119,13 +130,9 @@ class MP4Demux {
         })
 
         if (this.videoArray.length > 0) {
-          const events = require('../config/EventsConfig').default
-          this.demuxCallback && this.demuxCallback()
-          // 发送视频数据到decode
-          if (this.videoArray.length > 0) {
-            console.log('emit video data:', this.videoArray.length)
-            // 这里会通过事件系统发送到decode worker
-          }
+          // 推送视频数据到解码器
+          this.decode.push(this.videoArray)
+          this.videoArray = []
         }
       }
 
@@ -151,8 +158,12 @@ class MP4Demux {
         })
 
         if (this.audioArray.length > 0) {
-          console.log('emit audio data:', this.audioArray.length)
-          // 这里会通过事件系统发送到audio player
+          // 发送音频数据到主线程
+          self.postMessage({
+            type: 'demuxedAAC',
+            data: this.audioArray
+          })
+          this.audioArray = []
         }
       }
     })

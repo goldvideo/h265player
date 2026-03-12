@@ -91,23 +91,38 @@ class MP4Loader extends BaseLoader {
    * 预加载MP4文件头，获取元数据
    */
   preload(callback) {
+    // 确保 sourceURL 已就绪
+    if (!this.sourceURL) {
+      if (this.options && this.options.sourceURL) {
+        this.sourceURL = this.options.sourceURL
+      } else {
+        const content = 'MP4 preload failed: sourceURL is empty'
+        this.logger.error('preload', content)
+        this.events.emit(Events.PlayerAlert, content)
+        this.events.emit(Events.LoaderError, content, {})
+        const errors = [this.state, 'load mp4 error.', 'data:', {}, content]
+        this.events.emit(Events.PlayerThrowError, errors)
+        return
+      }
+    }
+
     this.logger.info('preload', 'start preload mp4 metadata', 'url:', this.sourceURL)
 
     // 保存回调供handleWorkerMessage使用
     this.preloadCallback = callback
 
     // 先请求文件头（0-256KB）来获取moov box信息
-    this.httpWorker.postMessage({
-      type: 'invoke',
-      fileType: 'mp4',
-      method: 'get',
-      name: 'preloadmp4',
-      url: this.sourceURL,
-      options: {
-        headers: {
-          'Range': 'bytes=0-262143' // 256KB
+      this.httpWorker.postMessage({
+        type: 'invoke',
+        fileType: 'mp4',
+        method: 'get',
+        name: 'preloadmp4',
+        url: this.sourceURL,
+        options: {
+          headers: {
+            'Range': 'bytes=0-262143' // 256KB
+          }
         }
-      }
     })
   }
 
@@ -116,25 +131,50 @@ class MP4Loader extends BaseLoader {
    */
   handlePreloadResponse(data, buffer, callback) {
     try {
+      // 统一转为 ArrayBuffer，避免 DataView 类型错误
+      let mp4Buffer = null
+      if (data.arrayBuffer && data.arrayBuffer.buffer instanceof ArrayBuffer) {
+        mp4Buffer = data.arrayBuffer.buffer
+      } else if (buffer instanceof ArrayBuffer) {
+        mp4Buffer = buffer
+      } else if (buffer && buffer.buffer instanceof ArrayBuffer) {
+        mp4Buffer = buffer.buffer
+      } else if (typeof Blob !== 'undefined' && buffer instanceof Blob) {
+        buffer.arrayBuffer().then(arrBuf => {
+          this.handlePreloadResponse(data, arrBuf, callback)
+        }).catch(err => {
+          throw err
+        })
+        return
+      }
+
+      if (!mp4Buffer || !(mp4Buffer instanceof ArrayBuffer)) {
+        throw new Error('Invalid buffer: expected ArrayBuffer, got ' + (buffer ? buffer.constructor.name : typeof mp4Buffer))
+      }
+
       // 解析MP4元数据
       this.mp4Parser = new MP4Parser()
 
-      if (!this.mp4Parser.parse(buffer)) {
+      if (!this.mp4Parser.parse(mp4Buffer)) {
         throw new Error('Failed to parse MP4 metadata')
       }
 
       const metadata = this.mp4Parser.getMetadata()
       this.logger.info('preload', 'MP4 metadata:', metadata)
 
-      // 构建segment pool
-      const segments = this.mp4Parser.getSegments()
-      if (segments && segments.length > 0) {
-        segments.forEach(seg => {
-          const segmentModel = new SegmentModel(seg)
-          this.segmentPool.push(segmentModel)
-        })
-        this.logger.info('preload', 'build segment pool:', segments.length)
-      }
+      // 仅保留一个整文件分片，避免为每个分片重复请求整文件
+      const fullSegment = new SegmentModel({
+        no: 1,
+        name: 'full',
+        start: 0,
+        end: metadata.duration,
+        duration: metadata.duration
+      })
+      this.segmentPool = new SegmentPool()
+      this.segmentPool.push(fullSegment)
+
+      // 放宽缓冲限制到整段时长，防止 checkLoadCondition 拦截
+      this.maxBufferDuration = Math.max(this.maxBufferDuration, metadata.duration + 1)
 
       // 保存元数据
       this.setSourceData({
@@ -143,7 +183,7 @@ class MP4Loader extends BaseLoader {
         height: metadata.height,
         videoTrack: metadata.videoTrack,
         audioTrack: metadata.audioTrack,
-        segments: segments
+        segments: this.segmentPool
       })
 
       if (typeof callback === 'function') {
@@ -266,7 +306,8 @@ class MP4Loader extends BaseLoader {
     this.currentTime = time
 
     let retryCount = 1
-    const url = this.options.sourceURL
+    // 使用最新的 sourceURL（可能由 changeSrc/switchPlaylist 更新）
+    const url = this.sourceURL || this.options.sourceURL
 
     const _getRequestURL = (url, segment) => {
       if (typeof this.options.processURL == 'function') {
