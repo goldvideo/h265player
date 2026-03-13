@@ -38,9 +38,20 @@ class MP4DataManage extends BaseClass {
     })
     this.events.on(Events.LoaderLoaded, (data, segment, type, time) => {
       // console.error('Events.LoaderLoaded', data, segment, time, this)
+      console.log('[MP4DataManage] LoaderLoaded event:', {
+        segmentNo: segment?.no,
+        segmentName: segment?.name,
+        type,
+        time,
+        hasData: !!data,
+        hasArrayBuffer: !!data?.arrayBuffer,
+        arrayBufferSize: data?.arrayBuffer?.byteLength
+      })
+
       const buffer = this.createBuffer({
         arrayBuffer: data.arrayBuffer
       }, segment)
+
       this.segmentLoaded(segment, buffer)
       if (type === 'seek' && time === this.currentSeekTime) {
         this.events.emit(Events.DataManageSeek, buffer, time)
@@ -50,7 +61,15 @@ class MP4DataManage extends BaseClass {
       // MP4: 对于整文件加载，检查是否是第一次加载（segment.no === 1）
       const isMP4 = (this.options.type || '').toUpperCase() === 'MP4'
       const isFirstLoad = isMP4 ? (segment.no === 1) : (time === this.startLoadTime)
+      console.log('[MP4DataManage] Checking first load:', {
+        isMP4,
+        isFirstLoad,
+        segmentNo: segment?.no,
+        startLoadTime: this.startLoadTime,
+        time
+      })
       if (isFirstLoad) {
+        console.log('[MP4DataManage] Emitting DataManageFirstLoaded')
         this.events.emit(Events.DataManageFirstLoaded, buffer, time)
       }
     })
