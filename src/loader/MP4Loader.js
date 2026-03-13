@@ -113,18 +113,19 @@ class MP4Loader extends BaseLoader {
     // 保存回调供handleWorkerMessage使用
     this.preloadCallback = callback
 
-    // 先请求文件头（0-256KB）来获取moov box信息
-      this.httpWorker.postMessage({
-        type: 'invoke',
-        fileType: 'mp4',
-        method: 'get',
-        name: 'preloadmp4',
-        url: this.sourceURL,
-        options: {
-          headers: {
-            'Range': 'bytes=0-262143' // 256KB
-          }
+    // 请求足够大的文件范围来获取完整的 moov box（通常需要 5-10MB）
+    // 对于大多数 MP4 文件，moov box 包含在前 10MB 内
+    this.httpWorker.postMessage({
+      type: 'invoke',
+      fileType: 'mp4',
+      method: 'get',
+      name: 'preloadmp4',
+      url: this.sourceURL,
+      options: {
+        headers: {
+          'Range': 'bytes=0-10485759'  // 10MB - 足以包含大多数 MP4 的完整 moov box
         }
+      }
     })
   }
 
