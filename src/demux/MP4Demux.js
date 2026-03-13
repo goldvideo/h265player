@@ -306,17 +306,43 @@ class MP4Demux {
       }
 
       // Get hvcc from moov if not already set
+      // This is critical for proper sample decoding
       if (!this.hvcc && this.mp4boxfile.moov && this.mp4boxfile.moov.traks) {
+        console.log('[MP4Demux] Looking for HVCC from moov box...')
         for (const trak of this.mp4boxfile.moov.traks) {
           if (trak.mdia && trak.mdia.hdlr && trak.mdia.hdlr.handlerType === 'vide') {
+            console.log('[MP4Demux] Found video track, looking for HVCC...')
             if (trak.mdia.minf && trak.mdia.minf.stbl && trak.mdia.minf.stbl.stsd) {
               const entry = trak.mdia.minf.stbl.stsd.entries?.[0]
               if (entry && entry.hvcC) {
                 this.hvcc = entry.hvcC
+                console.log('[MP4Demux] Found HVCC:', {
+                  lengthSizeMinusOne: this.hvcc.lengthSizeMinusOne,
+                  nalu_arrays_count: this.hvcc.nalu_arrays?.length || 0
+                })
+              } else {
+                console.warn('[MP4Demux] HVCC not found in video track entry')
               }
+            } else {
+              console.warn('[MP4Demux] STSD not found in video track')
             }
             break
           }
+        }
+      }
+
+      // If HVCC still not found, try to extract hvcC from buffer directly
+      if (!this.hvcc && moovOffset >= 0) {
+        console.log('[MP4Demux] HVCC not found in moov, attempting direct buffer extraction...')
+        this.extractHvccFromBuffer(moovOffset)
+      }
+
+      if (!this.hvcc) {
+        console.warn('[MP4Demux] HVCC not found, will use default lengthSize=4')
+        // Create minimal HVCC for fallback
+        this.hvcc = {
+          lengthSizeMinusOne: 3,
+          nalu_arrays: []
         }
       }
 
@@ -359,6 +385,211 @@ class MP4Demux {
     } catch (error) {
       console.error('[MP4Demux] Error in fallback sample extraction:', error)
     }
+  }
+
+  /**
+   * Extract hvcC box directly from buffer
+   */
+  extractHvccFromBuffer(moovOffset) {
+    try {
+      const buffer = this.fullBuffer
+      const moovSize = ((new Uint8Array(buffer, moovOffset, 4)[0] << 24) |
+                        (new Uint8Array(buffer, moovOffset + 1, 1)[0] << 16) |
+                        (new Uint8Array(buffer, moovOffset + 2, 1)[0] << 8) |
+                        new Uint8Array(buffer, moovOffset + 3, 1)[0])
+
+      const moovEnd = moovOffset + moovSize
+      let offset = moovOffset + 8
+
+      while (offset + 8 < moovEnd) {
+        const sizeBytes = new Uint8Array(buffer, offset, 4)
+        const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+        const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+        const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+        if (type === 'trak') {
+          const hvcc = this.findHvcCInTrak(offset, offset + size, buffer)
+          if (hvcc) {
+            this.hvcc = hvcc
+            console.log('[MP4Demux] Found hvcC from buffer:', {
+              lengthSizeMinusOne: hvcc.lengthSizeMinusOne
+            })
+            return
+          }
+        }
+
+        if (size === 0 || size < 8) break
+        offset += size
+      }
+
+      console.warn('[MP4Demux] Could not find hvcC in buffer')
+    } catch (error) {
+      console.warn('[MP4Demux] Error extracting hvcC from buffer:', error)
+    }
+  }
+
+  /**
+   * Find hvcC box in a trak box
+   */
+  findHvcCInTrak(trakStart, trakEnd, buffer) {
+    try {
+      let offset = trakStart + 8
+
+      while (offset + 8 < trakEnd) {
+        const sizeBytes = new Uint8Array(buffer, offset, 4)
+        const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+        const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+        const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+        if (type === 'mdia') {
+          const hvcc = this.findHvcCInMdia(offset, offset + size, buffer)
+          if (hvcc) return hvcc
+        }
+
+        if (size === 0 || size < 8) break
+        offset += size
+      }
+    } catch (error) {
+      console.warn('[MP4Demux] Error finding hvcC in trak:', error)
+    }
+    return null
+  }
+
+  /**
+   * Find hvcC box in a mdia box
+   */
+  findHvcCInMdia(mdiaStart, mdiaEnd, buffer) {
+    try {
+      let offset = mdiaStart + 8
+
+      while (offset + 8 < mdiaEnd) {
+        const sizeBytes = new Uint8Array(buffer, offset, 4)
+        const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+        const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+        const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+        if (type === 'minf') {
+          const hvcc = this.findHvcCInMinf(offset, offset + size, buffer)
+          if (hvcc) return hvcc
+        }
+
+        if (size === 0 || size < 8) break
+        offset += size
+      }
+    } catch (error) {
+      console.warn('[MP4Demux] Error finding hvcC in mdia:', error)
+    }
+    return null
+  }
+
+  /**
+   * Find hvcC box in a minf box
+   */
+  findHvcCInMinf(minfStart, minfEnd, buffer) {
+    try {
+      let offset = minfStart + 8
+
+      while (offset + 8 < minfEnd) {
+        const sizeBytes = new Uint8Array(buffer, offset, 4)
+        const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+        const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+        const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+        if (type === 'stbl') {
+          const hvcc = this.findHvcCInStbl(offset, offset + size, buffer)
+          if (hvcc) return hvcc
+        }
+
+        if (size === 0 || size < 8) break
+        offset += size
+      }
+    } catch (error) {
+      console.warn('[MP4Demux] Error finding hvcC in minf:', error)
+    }
+    return null
+  }
+
+  /**
+   * Find hvcC box in a stbl box
+   */
+  findHvcCInStbl(stblStart, stblEnd, buffer) {
+    try {
+      let offset = stblStart + 8
+
+      while (offset + 8 < stblEnd) {
+        const sizeBytes = new Uint8Array(buffer, offset, 4)
+        const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+        const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+        const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+        if (type === 'stsd') {
+          return this.parseHvcCFromStsd(offset, offset + size, buffer)
+        }
+
+        if (size === 0 || size < 8) break
+        offset += size
+      }
+    } catch (error) {
+      console.warn('[MP4Demux] Error finding hvcC in stbl:', error)
+    }
+    return null
+  }
+
+  /**
+   * Parse hvcC configuration from stsd (Sample Description) box
+   */
+  parseHvcCFromStsd(stsdStart, stsdEnd, buffer) {
+    try {
+      // stsd format: version (1) + flags (3) + entry count (4) + entries
+      const entryCount = ((new Uint8Array(buffer, stsdStart + 12, 4)[0] << 24) |
+                          (new Uint8Array(buffer, stsdStart + 13, 4)[0] << 16) |
+                          (new Uint8Array(buffer, stsdStart + 14, 4)[0] << 8) |
+                          new Uint8Array(buffer, stsdStart + 15, 4)[0])
+
+      if (entryCount === 0) return null
+
+      // First entry starts at offset 16 from stsd start
+      let entryOffset = stsdStart + 16
+      let offset = entryOffset + 8  // Skip entry size and type
+
+      // Look for hvcC box inside the entry
+      const entryEnd = entryOffset + ((new Uint8Array(buffer, entryOffset, 4)[0] << 24) |
+                                       (new Uint8Array(buffer, entryOffset + 1, 4)[0] << 16) |
+                                       (new Uint8Array(buffer, entryOffset + 2, 4)[0] << 8) |
+                                       new Uint8Array(buffer, entryOffset + 3, 4)[0])
+
+      while (offset + 8 < entryEnd) {
+        const sizeBytes = new Uint8Array(buffer, offset, 4)
+        const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+        const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+        const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+        if (type === 'hvcC') {
+          // Parse hvcC box
+          // hvcC structure: configurationVersion (1) + profile info (1) + constraints (6) + level (1) + reserved (4) + size info (2) + array count (1) + arrays
+          const hvccOffset = offset + 8
+          const lengthSizeMinusOne = (new Uint8Array(buffer, hvccOffset + 20, 1)[0]) & 0x03
+          console.log('[MP4Demux] Parsed hvcC lengthSizeMinusOne:', lengthSizeMinusOne)
+
+          return {
+            lengthSizeMinusOne,
+            nalu_arrays: []  // For now, empty arrays - would need more complex parsing
+          }
+        }
+
+        if (size === 0 || size < 8) break
+        offset += size
+      }
+    } catch (error) {
+      console.warn('[MP4Demux] Error parsing hvcC from stsd:', error)
+    }
+    return null
   }
 
   /**
@@ -481,14 +712,24 @@ class MP4Demux {
    * Process extracted samples and send to decoder
    */
   processExtractedSamples(samples) {
+    console.log('[MP4Demux] processExtractedSamples: starting with', samples.length, 'samples')
     const pesList = []
 
-    for (const sample of samples) {
+    for (let i = 0; i < samples.length; i++) {
+      const sample = samples[i]
       const sampleData = this.sampleExtractor.getSampleData(sample)
       if (!sampleData) {
         console.warn('[MP4Demux] Could not get data for sample:', sample.index)
         continue
       }
+
+      console.log('[MP4Demux] Processing sample:', {
+        index: sample.index,
+        dataSize: sampleData.byteLength,
+        is_sync: sample.is_sync,
+        decodingTime: sample.decodingTime,
+        compositionTime: sample.compositionTime
+      })
 
       // Convert to Annex-B format
       const data = this.convertExtractedSampleToAnnexB(sampleData, sample.is_sync)
@@ -505,6 +746,7 @@ class MP4Demux {
 
       // Send samples in batches to avoid overwhelming the decoder
       if (pesList.length >= 10) {
+        console.log('[MP4Demux] Sending batch of', pesList.length, 'samples to decoder')
         this.decode.push(pesList)
         pesList.length = 0
       }
@@ -512,10 +754,11 @@ class MP4Demux {
 
     // Send remaining samples
     if (pesList.length > 0) {
+      console.log('[MP4Demux] Sending final batch of', pesList.length, 'samples to decoder')
       this.decode.push(pesList)
     }
 
-    console.log('[MP4Demux] Processed samples, maxVideoPTS:', this.maxVideoPTS)
+    console.log('[MP4Demux] Processed all samples, maxVideoPTS:', this.maxVideoPTS)
   }
 
   /**
@@ -523,39 +766,84 @@ class MP4Demux {
    * This converts from MP4 length-prefixed format to NALU format with start codes
    */
   convertExtractedSampleToAnnexB(data, isSyncSample) {
-    const lengthSize = (this.hvcc && this.hvcc.lengthSizeMinusOne) ? (this.hvcc.lengthSizeMinusOne + 1) : 4
+    // Fix: properly check if lengthSizeMinusOne is defined (could be 0)
+    const lengthSize = (this.hvcc && this.hvcc.lengthSizeMinusOne !== undefined)
+      ? (this.hvcc.lengthSizeMinusOne + 1)
+      : 4
+
+    console.log('[MP4Demux] convertExtractedSampleToAnnexB:', {
+      dataSize: data.byteLength,
+      lengthSize,
+      isSyncSample,
+      hasHvcc: !!this.hvcc,
+      hvccLengthSizeMinusOne: this.hvcc?.lengthSizeMinusOne,
+      nalu_arrays: this.hvcc?.nalu_arrays?.length || 0
+    })
+
     const units = []
 
     // Prepend VPS/SPS/PPS for key frames
     if (isSyncSample && this.hvcc && this.hvcc.nalu_arrays) {
+      console.log('[MP4Demux] Adding VPS/SPS/PPS for keyframe')
+      let headerCount = 0
       this.hvcc.nalu_arrays.forEach(arr => {
         if ([32, 33, 34].includes(arr.nalu_type)) {
           arr.forEach(n => {
             if (n && n.data) {
+              console.log('[MP4Demux] Adding NALU type', arr.nalu_type, 'size', n.data.byteLength)
               units.push(this.withStartCode(n.data))
+              headerCount++
             }
           })
         }
       })
+      console.log('[MP4Demux] Added', headerCount, 'header NALUs')
     }
 
-    // Parse length-prefixed NALUs
+    // Parse length-prefixed NALUs from sample data
     let offset = 0
+    let naluCount = 0
     while (offset + lengthSize <= data.byteLength) {
       let len = 0
+      // Read length as big-endian integer
       for (let i = 0; i < lengthSize; i++) {
         len = (len << 8) | data[offset + i]
       }
       offset += lengthSize
 
-      if (len <= 0 || offset + len > data.byteLength) break
+      if (len <= 0) {
+        console.warn('[MP4Demux] Invalid NALU length:', len, 'at offset:', offset - lengthSize)
+        break
+      }
+
+      if (offset + len > data.byteLength) {
+        console.warn('[MP4Demux] NALU extends beyond data:', {
+          offset,
+          naluLength: len,
+          dataSize: data.byteLength,
+          required: offset + len
+        })
+        break
+      }
 
       const nalu = data.subarray(offset, offset + len)
+      const naluType = (nalu[0] >> 1) & 0x3F // Extract NALU type from H.265
+      console.log('[MP4Demux] NALU #' + naluCount + ':', {
+        type: naluType,
+        length: len,
+        offset: offset - lengthSize
+      })
+
       units.push(this.withStartCode(nalu))
       offset += len
+      naluCount++
     }
 
-    return this.concatUint8(units)
+    console.log('[MP4Demux] Parsed', naluCount, 'NALUs from sample, total units:', units.length)
+
+    const result = this.concatUint8(units)
+    console.log('[MP4Demux] Final Annex-B size:', result.byteLength)
+    return result
   }
 
   flush() {
