@@ -21,12 +21,22 @@ class Decode {
   }
   loadWASM(event) {
     let libPath = event.data.libPath
+    console.log('[Decode] Loading WASM with libPath:', libPath)
+
+    // 确保 libPath 以 / 结尾
+    if (libPath && !libPath.endsWith('/')) {
+      libPath = libPath + '/'
+    }
+
     self.Module = {
       locateFile: function (wasm) {
-        return libPath + wasm;
+        const fullUrl = libPath + wasm
+        console.log('[Decode] locateFile resolving:', wasm, '->', fullUrl)
+        return fullUrl
       }
     }
     // self.importScripts(libPath + 'TAppDecoderStatic.js')
+    console.log('[Decode] Importing libffmpeg.js from:', libPath + 'libffmpeg.js')
     self.importScripts(libPath + 'libffmpeg.js')
     self.Module.onRuntimeInitialized = function() {
       console.log('wasm loaded')

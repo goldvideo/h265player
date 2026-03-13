@@ -29,11 +29,19 @@ module.exports = merge(baseWebpackConfig, {
   // source-map most detailed at the expense of build speed.
   // cheap-source-map
 
-  // devServer: {
-  // 	contentBase: path.join(__dirname), // boolean | string | array, static file location
-  // 	hot: true // hot module replacement. Depends on HotModuleReplacementPlugin
-  // 	// ...
-  // },
+  devServer: {
+    contentBase: path.join(__dirname, '../'), // boolean | string | array, static file location
+    hot: true, // hot module replacement. Depends on HotModuleReplacementPlugin
+    port: 8000,
+    historyApiFallback: true,
+    // Properly configure MIME types for WASM
+    mimeTypes: {
+      'application/wasm': ['wasm']
+    },
+    headers: {
+      'Access-Control-Allow-Origin': '*'
+    }
+  },
 
   plugins: [
     // new webpack.optimize.CommonsChunkPlugin({
