@@ -425,6 +425,173 @@ class MP4SampleExtractor {
   }
 
   /**
+   * Parse hvcC box from stsd entry
+   * Returns complete hvcC structure with nalu_arrays
+   */
+  parseHvcCFromStsd(stsdStart, stsdEnd, buffer) {
+    try {
+      // stsd format: version (1) + flags (3) + entry count (4) + entries
+      const entryCount = ((new Uint8Array(buffer, stsdStart + 12, 4)[0] << 24) |
+                          (new Uint8Array(buffer, stsdStart + 13, 4)[0] << 16) |
+                          (new Uint8Array(buffer, stsdStart + 14, 4)[0] << 8) |
+                          new Uint8Array(buffer, stsdStart + 15, 4)[0])
+
+      if (entryCount === 0) return null
+
+      // First entry starts at offset 16 from stsd start
+      let entryOffset = stsdStart + 16
+      let offset = entryOffset + 8  // Skip entry size and type
+
+      // Look for hvcC box inside the entry
+      const entryEnd = entryOffset + ((new Uint8Array(buffer, entryOffset, 4)[0] << 24) |
+                                       (new Uint8Array(buffer, entryOffset + 1, 4)[0] << 16) |
+                                       (new Uint8Array(buffer, entryOffset + 2, 4)[0] << 8) |
+                                       new Uint8Array(buffer, entryOffset + 3, 4)[0])
+
+      while (offset + 8 < entryEnd) {
+        const sizeBytes = new Uint8Array(buffer, offset, 4)
+        const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
+
+        const typeBytes = new Uint8Array(buffer, offset + 4, 4)
+        const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+
+        if (type === 'hvcC') {
+          return this.parseHvcCBox(offset, offset + size, buffer)
+        }
+
+        if (size === 0 || size < 8) break
+        offset += size
+      }
+    } catch (error) {
+      console.warn('[MP4SampleExtractor] Error parsing hvcC from stsd:', error)
+    }
+    return null
+  }
+
+  /**
+   * Parse hvcC box content
+   */
+  parseHvcCBox(hvccStart, hvccEnd, buffer) {
+    try {
+      let offset = hvccStart + 8  // Skip header
+
+      // configurationVersion (1)
+      const configurationVersion = this.readUint8(offset)
+      offset += 1
+
+      // profile_space (3 bits) + profile_idc (5 bits)
+      const profile_info = this.readUint8(offset)
+      const profile_idc = profile_info & 0x1F
+      const profile_space = (profile_info >> 5) & 0x07
+      offset += 1
+
+      // general_profile_compatibility_flags (32 bits)
+      offset += 4
+
+      // constraint_flags (6 bits) + level_idc (8 bits)
+      const level_info = this.readUint8(offset)
+      const level_idc = level_info
+      const constraint_flags = (level_info >> 6) & 0x3F
+      offset += 1
+
+      // reserved (2 bits) + lengthSizeMinusOne (2 bits)
+      const lengthSizeMinusOne = (this.readUint8(offset) >> 6) & 0x03
+      offset += 1
+
+      // reserved + num_seq_parameter_sets (6 bits)
+      const num_seq_parameter_sets = this.readUint8(offset) & 0x3F
+      offset += 1
+
+      const nalu_arrays = []
+
+      // Parse sequence parameter sets (SPS)
+      for (let i = 0; i < num_seq_parameter_sets; i++) {
+        if (offset + 2 > hvccEnd) break
+        const seq_param_set_length = this.readUint16(offset)
+        offset += 2
+
+        if (offset + seq_param_set_length > hvccEnd) break
+
+        const nalu_data = new Uint8Array(buffer, offset, seq_param_set_length)
+        nalu_arrays.push({
+          nalu_type: 33,  // SPS type
+          data: nalu_data
+        })
+
+        offset += seq_param_set_length
+      }
+
+      // Parse picture parameter sets (PPS)
+      const num_pic_parameter_sets = this.readUint8(offset) & 0x1F
+      offset += 1
+
+      for (let i = 0; i < num_pic_parameter_sets; i++) {
+        if (offset + 2 > hvccEnd) break
+        const pic_param_set_length = this.readUint16(offset)
+        offset += 2
+
+        if (offset + pic_param_set_length > hvccEnd) break
+
+        const nalu_data = new Uint8Array(buffer, offset, pic_param_set_length)
+        nalu_arrays.push({
+          nalu_type: 34,  // PPS type
+          data: nalu_data
+        })
+
+        offset += pic_param_set_length
+      }
+
+      // Parse additional arrays (VPS, etc.)
+      const num_additional_arrays = this.readUint8(offset)
+      offset += 1
+
+      for (let i = 0; i < num_additional_arrays; i++) {
+        if (offset + 5 > hvccEnd) break
+
+        // reserved (6 bits) + nal_unit_type (6 bits)
+        const array_completeness = this.readUint8(offset) & 0x01
+        const nal_unit_type = (this.readUint8(offset) >> 1) & 0x3F
+        offset += 1
+
+        const num_nalus = this.readUint16(offset)
+        offset += 2
+
+        for (let j = 0; j < num_nalus && offset + 2 <= hvccEnd; j++) {
+          const nal_unit_length = this.readUint16(offset)
+          offset += 2
+
+          if (offset + nal_unit_length > hvccEnd) break
+
+          const nalu_data = new Uint8Array(buffer, offset, nal_unit_length)
+          nalu_arrays.push({
+            nalu_type: nal_unit_type,
+            data: nalu_data
+          })
+
+          offset += nal_unit_length
+        }
+      }
+
+      console.log('[MP4SampleExtractor] Parsed hvcC:', {
+        profile_idc,
+        level_idc,
+        lengthSizeMinusOne,
+        nalu_arrays_count: nalu_arrays.length,
+        sps_count: nalu_arrays.filter(a => a.nalu_type === 33).length,
+        pps_count: nalu_arrays.filter(a => a.nalu_type === 34).length
+      })
+
+      return {
+        lengthSizeMinusOne,
+        nalu_arrays
+      }
+    } catch (error) {
+      console.warn('[MP4SampleExtractor] Error parsing hvcC box:', error)
+      return null
+    }
+  }
+
+  /**
    * Build sample list from extracted tables
    */
   buildSampleList(sttsData, stscData, stszData, stcoData, cttsData, stssData) {
@@ -511,7 +678,9 @@ class MP4SampleExtractor {
           decodingTime,
           compositionTime,
           is_sync: keyframes.has(sampleIndex),
-          timescale: this.timescale
+          timescale: this.timescale,
+          cts: compositionTime,  // MP4Box uses 'cts' for composition time
+          data: null  // Will be filled by getSampleData
         })
 
         sampleOffsetInChunk += sampleSize
