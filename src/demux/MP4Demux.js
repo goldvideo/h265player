@@ -45,43 +45,29 @@ class MP4Demux {
       console.error('MP4Box not available')
       return
     }
-    console.log('[MP4Demux] MP4Box available, creating file instance')
-    // Create file with chunked: false to indicate we're loading a complete file at once
-    this.mp4boxfile = MP4Box.createFile({
-      chunked: false
-    })
-    console.log('[MP4Demux] MP4Box file created:', this.mp4boxfile)
+    this.mp4boxfile = MP4Box.createFile({ chunked: false })
 
     this.mp4boxfile.onReady = (info) => {
-      console.log('[MP4Demux] onReady called with info:', info)
       this.initialized = true
       try {
         if (info.videoTracks && info.videoTracks.length) {
           const trak = this.mp4boxfile.moov.traks.find(
             t => t.tkhd.track_id === info.videoTracks[0].id
           )
-          console.log('[MP4Demux] Found video trak:', trak)
           if (trak && trak.mdia && trak.mdia.minf && trak.mdia.minf.stbl) {
-            const stbl = trak.mdia.minf.stbl
-            const stsd = stbl.stsd
+            const stsd = trak.mdia.minf.stbl.stsd
             if (stsd && stsd.entries && stsd.entries.length > 0) {
-              const entry = stsd.entries[0]
-              this.hvcc = entry.hvcC
+              this.hvcc = stsd.entries[0].hvcC
             }
           }
           this.videoTrackId = info.videoTracks[0].id
 
-          // Try setExtractionOptions, but don't fail if it throws
           try {
-            console.log('[MP4Demux] Setting extraction options for video track')
             this.mp4boxfile.setExtractionOptions(this.videoTrackId, null, {
               nbSamples: info.videoTracks[0].nb_samples,
               rapAlignment: true
             })
-          } catch (e) {
-            console.warn('[MP4Demux] setExtractionOptions failed:', e.message)
-            // Continue anyway - onExtractSamples will be called if samples are available
-          }
+          } catch (e) { /* ignore */ }
         }
 
         if (info.audioTracks && info.audioTracks.length) {
@@ -91,25 +77,18 @@ class MP4Demux {
               nbSamples: info.audioTracks[0].nb_samples,
               rapAlignment: true
             })
-          } catch (e) {
-            console.warn('[MP4Demux] setExtractionOptions for audio failed:', e.message)
-          }
+          } catch (e) { /* ignore */ }
         }
 
-        // Try to start, but don't fail if it throws
         try {
-          console.log('[MP4Demux] Calling start()')
           this.mp4boxfile.start()
-        } catch (e) {
-          console.warn('[MP4Demux] start() failed:', e.message)
-        }
+        } catch (e) { /* ignore */ }
       } catch (e) {
-        console.error('[MP4Demux] Error in onReady callback:', e)
+        console.error('[MP4Demux] onReady error:', e)
       }
     }
 
     this.mp4boxfile.onSamples = (id, user, samples) => {
-      console.log('[MP4Demux] onSamples called:', { id, samplesCount: samples?.length })
       if (id === this.videoTrackId) {
         this.handleVideoSamples(samples)
       } else if (id === this.audioTrackId) {
@@ -155,7 +134,12 @@ class MP4Demux {
   }
 
   convertSampleToAnnexB(sample) {
-    const lengthSize = (sample.description.hvcC.lengthSizeMinusOne || 3) + 1
+    // Fix: Check if hvcC exists before accessing properties
+    const hvcC = sample.description.hvcC
+    const lengthSize = (hvcC && hvcC.lengthSizeMinusOne !== undefined)
+      ? (hvcC.lengthSizeMinusOne + 1)
+      : 4
+
     const data = sample.data
     let offset = 0
     const units = []
@@ -207,10 +191,7 @@ class MP4Demux {
   }
 
   push(buffer) {
-    if (!buffer || !this.mp4boxfile) {
-      console.warn('MP4Demux.push: buffer or mp4boxfile is null/undefined')
-      return
-    }
+    if (!buffer || !this.mp4boxfile) return
 
     // Convert various buffer types to ArrayBuffer
     let ab = null
@@ -218,64 +199,45 @@ class MP4Demux {
     if (buffer instanceof ArrayBuffer) {
       ab = buffer
     } else if (buffer instanceof Uint8Array) {
-      ab = buffer.buffer
+      ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
     } else if (ArrayBuffer.isView(buffer)) {
-      ab = buffer.buffer
+      ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
     } else if (buffer && buffer.buffer instanceof ArrayBuffer) {
       ab = buffer.buffer
     } else {
-      console.error('MP4Demux: Unsupported buffer type', buffer?.constructor?.name)
+      console.error('MP4Demux: Unsupported buffer type')
       return
     }
 
-    if (!ab || ab.byteLength === 0) {
-      console.warn('MP4Demux.push: ab is null or empty')
-      return
-    }
+    if (!ab || ab.byteLength === 0) return
 
     // Store complete buffer for fallback extraction
     if (!this.fullBuffer) {
       this.fullBuffer = ab
     }
 
-    // Verify buffer is valid
-    const view = new Uint8Array(ab, 0, Math.min(16, ab.byteLength))
-    const firstBoxType = String.fromCharCode(view[4], view[5], view[6], view[7])
-    console.log('MP4Demux.push: First box type:', firstBoxType, 'Buffer size:', ab.byteLength)
-
     ab.fileStart = this.fileStart
     this.fileStart += ab.byteLength
 
     try {
-      console.log('MP4Demux.push: appendBuffer with size:', ab.byteLength)
-
       let appendSuccess = false
       try {
         this.mp4boxfile.appendBuffer(ab)
         appendSuccess = true
-        console.log('MP4Demux.push: appendBuffer succeeded')
       } catch (e1) {
-        console.warn('MP4Demux: appendBuffer threw error:', e1.message)
-        console.warn('MP4Demux: mp4box.js failed, will use manual sample extraction as fallback')
-
-        // Trigger fallback sample extraction
+        console.warn('MP4Demux: appendBuffer failed:', e1.message, '- using fallback')
         this.useFallbackSampleExtraction()
       }
 
-      // Always try to flush
       if (!this.usingSampleExtractor) {
         try {
-          console.log('MP4Demux.push: calling flush...')
           this.mp4boxfile.flush()
-          console.log('MP4Demux.push: flush succeeded')
         } catch (e2) {
-          console.warn('MP4Demux.push: flush also threw error:', e2.message)
+          // ignore flush errors
         }
       }
-
-      console.log('MP4Demux.push: completed (usingFallback:', this.usingSampleExtractor, ')')
     } catch (error) {
-      console.error('MP4Demux: Unrecoverable error in push:', error?.message)
+      console.error('MP4Demux: Unrecoverable error:', error?.message)
     }
   }
 
@@ -545,42 +507,33 @@ class MP4Demux {
    */
   parseHvcCFromStsd(stsdStart, stsdEnd, buffer) {
     try {
-      // stsd format: version (1) + flags (3) + entry count (4) + entries
-      const entryCount = ((new Uint8Array(buffer, stsdStart + 12, 4)[0] << 24) |
-                          (new Uint8Array(buffer, stsdStart + 13, 4)[0] << 16) |
-                          (new Uint8Array(buffer, stsdStart + 14, 4)[0] << 8) |
-                          new Uint8Array(buffer, stsdStart + 15, 4)[0])
-
+      const dv = new DataView(buffer)
+      // stsd: box header (8) + version/flags (4) + entry_count (4)
+      const entryCount = dv.getUint32(stsdStart + 12)
       if (entryCount === 0) return null
 
-      // First entry starts at offset 16 from stsd start
-      let entryOffset = stsdStart + 16
-      let offset = entryOffset + 8  // Skip entry size and type
+      // First sample entry starts at stsdStart + 16
+      const entryOffset = stsdStart + 16
+      const entrySize = dv.getUint32(entryOffset)
+      const entryEnd = entryOffset + entrySize
 
-      // Look for hvcC box inside the entry
-      const entryEnd = entryOffset + ((new Uint8Array(buffer, entryOffset, 4)[0] << 24) |
-                                       (new Uint8Array(buffer, entryOffset + 1, 4)[0] << 16) |
-                                       (new Uint8Array(buffer, entryOffset + 2, 4)[0] << 8) |
-                                       new Uint8Array(buffer, entryOffset + 3, 4)[0])
+      // hev1/hvc1 VisualSampleEntry: box header (8) + reserved (6) + data_ref_index (2) +
+      // pre_defined (2) + reserved (2) + pre_defined (12) + width (2) + height (2) +
+      // horizresolution (4) + vertresolution (4) + reserved (4) + frame_count (2) +
+      // compressorname (32) + depth (2) + pre_defined (2) = 78 bytes after header
+      // So child boxes start at entryOffset + 8 + 78 = entryOffset + 86
+      let offset = entryOffset + 86
 
       while (offset + 8 < entryEnd) {
-        const sizeBytes = new Uint8Array(buffer, offset, 4)
-        const size = (sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]
-
-        const typeBytes = new Uint8Array(buffer, offset + 4, 4)
-        const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3])
+        const size = dv.getUint32(offset)
+        const t0 = dv.getUint8(offset + 4)
+        const t1 = dv.getUint8(offset + 5)
+        const t2 = dv.getUint8(offset + 6)
+        const t3 = dv.getUint8(offset + 7)
+        const type = String.fromCharCode(t0, t1, t2, t3)
 
         if (type === 'hvcC') {
-          // Parse hvcC box
-          // hvcC structure: configurationVersion (1) + profile info (1) + constraints (6) + level (1) + reserved (4) + size info (2) + array count (1) + arrays
-          const hvccOffset = offset + 8
-          const lengthSizeMinusOne = (new Uint8Array(buffer, hvccOffset + 20, 1)[0]) & 0x03
-          console.log('[MP4Demux] Parsed hvcC lengthSizeMinusOne:', lengthSizeMinusOne)
-
-          return {
-            lengthSizeMinusOne,
-            nalu_arrays: []  // For now, empty arrays - would need more complex parsing
-          }
+          return this.parseHvcCBox(buffer, offset + 8, offset + size)
         }
 
         if (size === 0 || size < 8) break
@@ -590,6 +543,85 @@ class MP4Demux {
       console.warn('[MP4Demux] Error parsing hvcC from stsd:', error)
     }
     return null
+  }
+
+  /**
+   * Parse the body of an hvcC box into { lengthSizeMinusOne, nalu_arrays }
+   * ISO/IEC 14496-15 §8.3.3.1
+   */
+  parseHvcCBox(buffer, start, end) {
+    try {
+      const dv = new DataView(buffer)
+      let p = start
+
+      // configurationVersion (1)
+      p += 1
+      // general_profile_space (2) | general_tier_flag (1) | general_profile_idc (5)
+      p += 1
+      // general_profile_compatibility_flags (4)
+      p += 4
+      // general_constraint_indicator_flags (6)
+      p += 6
+      // general_level_idc (1)
+      p += 1
+      // min_spatial_segmentation_idc (4 bits reserved + 12 bits)
+      p += 2
+      // parallelismType (6 bits reserved + 2 bits)
+      p += 1
+      // chromaFormat (6 bits reserved + 2 bits)
+      p += 1
+      // bitDepthLumaMinus8 (5 bits reserved + 3 bits)
+      p += 1
+      // bitDepthChromaMinus8 (5 bits reserved + 3 bits)
+      p += 1
+      // avgFrameRate (16)
+      p += 2
+      // constantFrameRate (2) | numTemporalLayers (3) | temporalIdNested (1) | lengthSizeMinusOne (2)
+      const misc = dv.getUint8(p)
+      const lengthSizeMinusOne = misc & 0x03
+      p += 1
+
+      // numOfArrays (8)
+      const numOfArrays = dv.getUint8(p)
+      p += 1
+
+      console.log('[MP4Demux] hvcC: lengthSizeMinusOne=' + lengthSizeMinusOne +
+        ', numOfArrays=' + numOfArrays)
+
+      const nalu_arrays = []
+
+      for (let i = 0; i < numOfArrays && p + 3 <= end; i++) {
+        // array_completeness (1) | reserved (1) | NAL_unit_type (6)
+        const naluType = dv.getUint8(p) & 0x3F
+        p += 1
+        const numNalus = dv.getUint16(p)
+        p += 2
+
+        // Build an array-like object that matches mp4box.js structure:
+        // arr.nalu_type = type, arr[0].data, arr[1].data, …
+        const arr = []
+        arr.nalu_type = naluType
+
+        for (let j = 0; j < numNalus && p + 2 <= end; j++) {
+          const naluLen = dv.getUint16(p)
+          p += 2
+          if (p + naluLen > end) break
+          const data = new Uint8Array(buffer, p, naluLen)
+          arr.push({ data })
+          p += naluLen
+        }
+
+        nalu_arrays.push(arr)
+        console.log('[MP4Demux] hvcC array: type=' + naluType +
+          ' (' + ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'VPS', 'SPS', 'PPS'][naluType] + ')' +
+          ', count=' + arr.length)
+      }
+
+      return { lengthSizeMinusOne, nalu_arrays }
+    } catch (error) {
+      console.warn('[MP4Demux] Error parsing hvcC box:', error)
+      return null
+    }
   }
 
   /**
@@ -710,55 +742,50 @@ class MP4Demux {
 
   /**
    * Process extracted samples and send to decoder
+   * Uses batched async processing to avoid blocking the worker
    */
   processExtractedSamples(samples) {
-    console.log('[MP4Demux] processExtractedSamples: starting with', samples.length, 'samples')
-    const pesList = []
+    console.log('[MP4Demux] processExtractedSamples:', samples.length, 'samples')
+    const BATCH_SIZE = 5
+    let offset = 0
 
-    for (let i = 0; i < samples.length; i++) {
-      const sample = samples[i]
-      const sampleData = this.sampleExtractor.getSampleData(sample)
-      if (!sampleData) {
-        console.warn('[MP4Demux] Could not get data for sample:', sample.index)
-        continue
+    const processBatch = () => {
+      const pesList = []
+      const end = Math.min(offset + BATCH_SIZE, samples.length)
+
+      for (let i = offset; i < end; i++) {
+        const sample = samples[i]
+        const sampleData = this.sampleExtractor.getSampleData(sample)
+        if (!sampleData) continue
+
+        const data = this.convertExtractedSampleToAnnexB(sampleData, sample.is_sync)
+        const pts = Math.round(sample.compositionTime * 1000 / sample.timescale)
+        this.maxVideoPTS = Math.max(this.maxVideoPTS, pts)
+
+        pesList.push({
+          PTS: pts,
+          data_byte: data,
+          partEnd: false,
+          lastTS: false
+        })
       }
 
-      console.log('[MP4Demux] Processing sample:', {
-        index: sample.index,
-        dataSize: sampleData.byteLength,
-        is_sync: sample.is_sync,
-        decodingTime: sample.decodingTime,
-        compositionTime: sample.compositionTime
-      })
-
-      // Convert to Annex-B format
-      const data = this.convertExtractedSampleToAnnexB(sampleData, sample.is_sync)
-
-      const pts = Math.round(sample.compositionTime * 1000 / sample.timescale)
-      this.maxVideoPTS = Math.max(this.maxVideoPTS, pts)
-
-      pesList.push({
-        PTS: pts,
-        data_byte: data,
-        partEnd: false,
-        lastTS: false
-      })
-
-      // Send samples in batches to avoid overwhelming the decoder
-      if (pesList.length >= 10) {
-        console.log('[MP4Demux] Sending batch of', pesList.length, 'samples to decoder')
+      if (pesList.length > 0) {
+        // Mark last sample of last batch
+        if (offset + BATCH_SIZE >= samples.length && pesList.length > 0) {
+          pesList[pesList.length - 1].partEnd = true
+          pesList[pesList.length - 1].lastTS = true
+        }
         this.decode.push(pesList)
-        pesList.length = 0
+      }
+
+      offset = end
+      if (offset < samples.length) {
+        setTimeout(processBatch, 16) // ~60fps pacing
       }
     }
 
-    // Send remaining samples
-    if (pesList.length > 0) {
-      console.log('[MP4Demux] Sending final batch of', pesList.length, 'samples to decoder')
-      this.decode.push(pesList)
-    }
-
-    console.log('[MP4Demux] Processed all samples, maxVideoPTS:', this.maxVideoPTS)
+    processBatch()
   }
 
   /**
@@ -766,84 +793,41 @@ class MP4Demux {
    * This converts from MP4 length-prefixed format to NALU format with start codes
    */
   convertExtractedSampleToAnnexB(data, isSyncSample) {
-    // Fix: properly check if lengthSizeMinusOne is defined (could be 0)
     const lengthSize = (this.hvcc && this.hvcc.lengthSizeMinusOne !== undefined)
       ? (this.hvcc.lengthSizeMinusOne + 1)
       : 4
-
-    console.log('[MP4Demux] convertExtractedSampleToAnnexB:', {
-      dataSize: data.byteLength,
-      lengthSize,
-      isSyncSample,
-      hasHvcc: !!this.hvcc,
-      hvccLengthSizeMinusOne: this.hvcc?.lengthSizeMinusOne,
-      nalu_arrays: this.hvcc?.nalu_arrays?.length || 0
-    })
 
     const units = []
 
     // Prepend VPS/SPS/PPS for key frames
     if (isSyncSample && this.hvcc && this.hvcc.nalu_arrays) {
-      console.log('[MP4Demux] Adding VPS/SPS/PPS for keyframe')
-      let headerCount = 0
       this.hvcc.nalu_arrays.forEach(arr => {
         if ([32, 33, 34].includes(arr.nalu_type)) {
           arr.forEach(n => {
             if (n && n.data) {
-              console.log('[MP4Demux] Adding NALU type', arr.nalu_type, 'size', n.data.byteLength)
               units.push(this.withStartCode(n.data))
-              headerCount++
             }
           })
         }
       })
-      console.log('[MP4Demux] Added', headerCount, 'header NALUs')
     }
 
     // Parse length-prefixed NALUs from sample data
     let offset = 0
-    let naluCount = 0
     while (offset + lengthSize <= data.byteLength) {
       let len = 0
-      // Read length as big-endian integer
       for (let i = 0; i < lengthSize; i++) {
         len = (len << 8) | data[offset + i]
       }
       offset += lengthSize
 
-      if (len <= 0) {
-        console.warn('[MP4Demux] Invalid NALU length:', len, 'at offset:', offset - lengthSize)
-        break
-      }
+      if (len <= 0 || offset + len > data.byteLength) break
 
-      if (offset + len > data.byteLength) {
-        console.warn('[MP4Demux] NALU extends beyond data:', {
-          offset,
-          naluLength: len,
-          dataSize: data.byteLength,
-          required: offset + len
-        })
-        break
-      }
-
-      const nalu = data.subarray(offset, offset + len)
-      const naluType = (nalu[0] >> 1) & 0x3F // Extract NALU type from H.265
-      console.log('[MP4Demux] NALU #' + naluCount + ':', {
-        type: naluType,
-        length: len,
-        offset: offset - lengthSize
-      })
-
-      units.push(this.withStartCode(nalu))
+      units.push(this.withStartCode(data.subarray(offset, offset + len)))
       offset += len
-      naluCount++
     }
 
-    console.log('[MP4Demux] Parsed', naluCount, 'NALUs from sample, total units:', units.length)
-
-    const result = this.concatUint8(units)
-    console.log('[MP4Demux] Final Annex-B size:', result.byteLength)
-    return result
+    return this.concatUint8(units)
   }
 
   flush() {
