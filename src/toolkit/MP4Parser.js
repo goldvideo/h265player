@@ -216,13 +216,13 @@ class MP4Parser {
     let timeOffset = offset + 12
 
     if (version === 0) {
-      // 32-bit时间戳
-      this.metadata.timescale = this.readUint32(timeOffset + 4)
-      this.metadata.duration = this.readUint32(timeOffset + 8) / this.metadata.timescale
-    } else {
-      // 64-bit时间戳
+      // version 0: creation_time(4) + modification_time(4) + timescale(4) + duration(4)
       this.metadata.timescale = this.readUint32(timeOffset + 8)
-      this.metadata.duration = Number(this.readUint64(timeOffset + 12)) / this.metadata.timescale
+      this.metadata.duration = this.readUint32(timeOffset + 12) / this.metadata.timescale
+    } else {
+      // version 1: creation_time(8) + modification_time(8) + timescale(4) + duration(8)
+      this.metadata.timescale = this.readUint32(timeOffset + 16)
+      this.metadata.duration = Number(this.readUint64(timeOffset + 20)) / this.metadata.timescale
     }
 
     logger.info('parseMVHD', 'duration:', this.metadata.duration, 'timescale:', this.metadata.timescale)
@@ -292,9 +292,11 @@ class MP4Parser {
     let timeOffset = offset + 12
 
     if (version === 0) {
-      trackInfo.duration = this.readUint32(timeOffset + 12)
+      // version 0: creation_time(4) + modification_time(4) + track_id(4) + reserved(4) + duration(4)
+      trackInfo.duration = this.readUint32(timeOffset + 16)
     } else {
-      trackInfo.duration = Number(this.readUint64(timeOffset + 12))
+      // version 1: creation_time(8) + modification_time(8) + track_id(4) + reserved(4) + duration(8)
+      trackInfo.duration = Number(this.readUint64(timeOffset + 24))
     }
 
     // 读取宽高（定点数）
@@ -337,9 +339,11 @@ class MP4Parser {
     let timeOffset = offset + 12
 
     if (version === 0) {
-      trackInfo.timescale = this.readUint32(timeOffset + 4)
-    } else {
+      // version 0: creation_time(4) + modification_time(4) + timescale(4)
       trackInfo.timescale = this.readUint32(timeOffset + 8)
+    } else {
+      // version 1: creation_time(8) + modification_time(8) + timescale(4)
+      trackInfo.timescale = this.readUint32(timeOffset + 16)
     }
   }
 

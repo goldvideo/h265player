@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>MP4 Debug Test</title>
+<script src="../dist/goldplay-h265-sdk.js"></script>
+</head>
+<body>
+<h1>MP4 Debug Test</h1>
+<div id="player"></div>
+<div id="logs" style="background: #f0f0f0; padding: 10px; margin-top: 10px; font-family: monospace; font-size: 12px; height: 400px; overflow-y: auto;"></div>
+
+<script>
+const logEl = document.getElementById('logs');
+
+function log(msg) {
+  const div = document.createElement('div');
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+log('MP4 Debug Test Started');
+
+const player = new GoldPlay(document.getElementById('player'), {
+  sourceURL: 'http://127.0.0.1:8000/h265player/data/mp4/tractor_h265.mp4',
+  type: 'MP4',
+  libPath: 'http://127.0.0.1:8000/h265player/dist/lib/',
+  playBackRate: 1,
+  autoPlay: false,
+});
+
+log('Player created');
+
+player.on('ready', () => {
+  log('Player ready');
+  player.play();
+  log('Play called');
+});
+
+player.on('error', (err) => {
+  log('Error: ' + JSON.stringify(err));
+});
+
+// Add global error handler
+window.onerror = function(msg, url, line) {
+  log('Global error: ' + msg + ' at ' + url + ':' + line);
+  return false;
+};
+
+// Add unhandled rejection handler
+window.addEventListener('unhandledrejection', function(event) {
+  log('Unhandled rejection: ' + event.reason);
+});
+</script>
+</body>
+</html>
