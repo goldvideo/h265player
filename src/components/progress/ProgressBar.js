@@ -94,7 +94,11 @@ class ProgressBar extends BaseComponent {
         targetLeft = evt.target.offsetLeft - evt.target.parentNode.offsetLeft
       }
       const offsetX = targetLeft + evt.offsetX
-      const seekTime =  offsetX * pixelTime * 1000
+      let seekTime =  offsetX * pixelTime * 1000
+      // Clamp to not exceed duration
+      if (duration && seekTime > duration * 1000) {
+        seekTime = duration * 1000
+      }
 
       this.setProgressPosition(offsetX)
 
@@ -223,7 +227,11 @@ class ProgressBar extends BaseComponent {
     const progressBarWidth = this.progressBarWidth
     duration = duration || this.options.dataManage.sourceData.duration || 0
     const pixelTime = duration / (width || progressBarWidth)
-    const seekTime = this.$progressBarPlay.offsetWidth * pixelTime * 1000
+    let seekTime = this.$progressBarPlay.offsetWidth * pixelTime * 1000
+    // Clamp to not exceed duration
+    if (duration && seekTime > duration * 1000) {
+      seekTime = duration * 1000
+    }
     return seekTime
   }
 

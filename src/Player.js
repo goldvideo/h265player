@@ -492,6 +492,14 @@ class Player extends BaseClass {
   }
 
   onDataReady () {
+    // Mark data as truly ready for playback
+    if (!this._dataReady) {
+      this._dataReady = true
+      // Now show the play button if control bar is already visible
+      if (!this.autoPlay && this.status !== 'playing') {
+        this.events.emit(Events.ControlBarPause)
+      }
+    }
     if (this.changing) {
       this.changing = false
       this.play()
@@ -499,6 +507,9 @@ class Player extends BaseClass {
     if (this.seeking) {
       this.play()
     } else if (this.autoPlay && !this.changing) {
+      this.play()
+    } else if (this.status === 'wait') {
+      // Resume playback when data becomes available after buffering wait
       this.play()
     }
   }
@@ -524,6 +535,7 @@ class Player extends BaseClass {
       this.logger.info('start play')
       this.status = 'playing'
       this.paused = false
+      this.autoPlay = true
       this.action.play(this.currentTime)
       this.events.emit(Events.PlayerPlay, this)
     }
@@ -560,7 +572,9 @@ class Player extends BaseClass {
       return
     }
     if (time >= this.duration * 1000) {
-      this.logger.info('seek', 'seek to time:', time)
+      // Seeking to or past the end — trigger end state
+      this.status = 'end'
+      this.events.emit(Events.PlayerEnd)
       return
     }
     this.seekTime = Date.now()

@@ -78,6 +78,8 @@ class ComponentsController extends BaseController {
   }
 
   drawBigPlayButton() {
+    if (this._bigPlayButtonDrawn) return
+    this._bigPlayButtonDrawn = true
     this.$screenContainer.prepend(this.bigPlayButton.element)
     this.bigPlayButton.show()
     this.bigPlayButton.bindEvent()

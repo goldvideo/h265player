@@ -104,6 +104,11 @@ export default class Action extends BaseClass {
     }
   }
   setCurrentTime(time) {
+    // Clamp time to not exceed duration
+    let duration = this.player.duration
+    if (duration && time > duration * 1000) {
+      time = duration * 1000
+    }
     this.player.currentTime = time
     this.events.emit(Events.PlayerTimeUpdate, time)
   }
