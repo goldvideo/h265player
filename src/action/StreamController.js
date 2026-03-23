@@ -54,6 +54,12 @@ export default class StreamController extends BaseClass {
     })
     this.events.on(Events.ImagePlayerWait, () => {
       this.dataReady.imageReady = false
+      // If all segments have been loaded and decoded, no more data will come.
+      // Treat this as end of video instead of waiting indefinitely.
+      if (this.currentIndex >= this.tsNumber && this.imagePlayer.maxPTS !== null) {
+        this.events.emit(Events.PlayerEnd)
+        return
+      }
       this.events.emit(Events.PlayerWait, 'imagePlayer')
     })
     this.events.on(Events.ImagePlayerEnd, () => {
@@ -61,6 +67,10 @@ export default class StreamController extends BaseClass {
       this.events.emit(Events.PlayerEnd)
     })
     this.events.on(Events.PlayerWait, () => {
+      // Don't override 'end' status — audio waiting can fire after video ends
+      if (this.player.status === 'end') {
+        return
+      }
       this.logger.warn('player status wait')
       this.player.status = 'wait'
       if (this.dataManageStatus === 'loadend') {
@@ -79,9 +89,14 @@ export default class StreamController extends BaseClass {
       this.imagePlayer.maxPTS = data
       // If player is already waiting (all frames consumed before flush completed),
       // check if we're past the end and trigger end event
-      if (this.player.status === 'wait' && data > 0 &&
-          this.player.currentTime >= data) {
-        this.events.emit(Events.PlayerEnd)
+      if (this.player.status === 'wait' && data > 0) {
+        if (this.player.currentTime >= data) {
+          this.events.emit(Events.PlayerEnd)
+        } else {
+          // All frames decoded but remaining buffer < READYBUFFERLENGTH,
+          // so ImagePlayerReady never fired. Force data ready to resume playback.
+          this.checkDataReady('imageReady')
+        }
       }
     })
   }

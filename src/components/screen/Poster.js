@@ -174,6 +174,15 @@ class Poster extends BaseComponent {
         this.data.speed = sizeFormat.formatBytes(data.speed) + ' /s'
       }
     })
+    // Allow clicking the poster to start playback
+    if (this.element) {
+      this.element.style.cursor = 'pointer'
+      this.element.addEventListener('click', () => {
+        if (this.data.display === 'show') {
+          this.events.emit(Events.PlayerOnPlay)
+        }
+      })
+    }
   }
 
   hide() {

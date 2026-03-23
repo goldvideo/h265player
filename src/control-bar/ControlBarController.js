@@ -42,10 +42,14 @@ class ControlBarController extends BaseController {
     this.timer.setTotalTime(this.dataManage)
     this.drawLayout()
     this.bindEvent()
-    if (!this.player.autoPlay) {
+    if (this.player.autoPlay) {
+      this.events.emit(Events.ControlBarPlay)
+    } else if (this.player._dataReady) {
+      // Data already decoded — show play button immediately
       this.events.emit(Events.ControlBarPause)
     } else {
-      this.events.emit(Events.ControlBarPlay)
+      // Data not ready yet — show loading indicator in control bar
+      this.events.emit(Events.ControlBarPauseLoading)
     }
   }
 
@@ -109,6 +113,8 @@ class ControlBarController extends BaseController {
       this.pauseButton.hide()
     })
     this.events.on(Events.PlayerEnd, () => {
+      clearTimeout(this._waitDebounce)
+      this.waitingBar.hideWaiting()
       this.replayButton.show()
       this.pauseButton.hide()
       this.playButton.hide()
