@@ -124,6 +124,11 @@ export default class Action extends BaseClass {
       }
       this.audioPlayer.currentTime = time
 
+    } else if (videoBuffered && !this.audioPlayer.need) {
+      // MP4 with no audio sync: seek directly within video buffer
+      this.player.currentTime = time
+      this.player.play()
+
     } else {
       this.reset()
     }

@@ -167,6 +167,10 @@ class MP4SampleExtractor {
           const mdiaSize = this.readUint32(mdiaOffset)
           const mdiaType = this.readBoxType(mdiaOffset + 4)
 
+          if (mdiaType === 'mdhd') {
+            this.parseMDHD(mdiaOffset)
+          }
+
           if (mdiaType === 'minf') {
             // Find STBL inside minf
             const minfEnd = mdiaOffset + mdiaSize
@@ -197,6 +201,22 @@ class MP4SampleExtractor {
     }
 
     return null
+  }
+
+  /**
+   * Parse Media Header Box (mdhd) to get correct timescale
+   */
+  parseMDHD(offset) {
+    const version = this.readUint8(offset + 8)
+    let timeOffset = offset + 12
+    if (version === 0) {
+      // version 0: creation_time(4) + modification_time(4) + timescale(4)
+      this.timescale = this.readUint32(timeOffset + 8)
+    } else {
+      // version 1: creation_time(8) + modification_time(8) + timescale(4)
+      this.timescale = this.readUint32(timeOffset + 16)
+    }
+    console.log('[MP4SampleExtractor] Parsed mdhd timescale:', this.timescale)
   }
 
   /**
