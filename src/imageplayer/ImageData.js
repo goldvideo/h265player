@@ -27,6 +27,10 @@ export default class ImageData extends BaseClass{
       this.start = data.pts
       this.fps = data.fps
     }
+    // Default duration for newly inserted frame (used if no successor exists yet)
+    if (!data.duration) {
+      data.duration = this.fps ? Math.ceil(1000 / this.fps) : 40
+    }
     let index = this.insertSort(pool, data)
     if (pool[index - 1]) {
       pool[index -1].duration = pool[index].pts - pool[index -1].pts

@@ -60,6 +60,12 @@ export default class StreamController extends BaseClass {
         this.events.emit(Events.PlayerEnd)
         return
       }
+      // Fallback: if currentTime is at or past the known duration, it's the end
+      const durationMs = this.duration * 1000
+      if (durationMs > 0 && this.player.currentTime >= durationMs - 500) {
+        this.events.emit(Events.PlayerEnd)
+        return
+      }
       this.events.emit(Events.PlayerWait, 'imagePlayer')
     })
     this.events.on(Events.ImagePlayerEnd, () => {
@@ -89,7 +95,7 @@ export default class StreamController extends BaseClass {
       this.imagePlayer.maxPTS = data
       // If player is already waiting (all frames consumed before flush completed),
       // check if we're past the end and trigger end event
-      if (this.player.status === 'wait' && data > 0) {
+      if ((this.player.status === 'wait' || this.player.seeking) && data > 0) {
         if (this.player.currentTime >= data) {
           this.events.emit(Events.PlayerEnd)
         } else {

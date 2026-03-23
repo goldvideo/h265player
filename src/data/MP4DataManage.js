@@ -55,7 +55,8 @@ class MP4DataManage extends BaseClass {
       this.segmentLoaded(segment, buffer)
       if (type === 'seek' && time === this.currentSeekTime) {
         this.events.emit(Events.DataManageSeek, buffer, time)
-        this.removeBufferByNo(buffer.no)
+        // MP4: keep buffer in pool so subsequent seeks reuse it
+        // instead of re-downloading the entire file
         return
       }
       // MP4: 对于整文件加载，检查是否是第一次加载（segment.no === 1）
@@ -217,9 +218,8 @@ class MP4DataManage extends BaseClass {
 
     if (typeof callback == 'function') {
       callback.call(this, buffer)
-      if (buffer) {
-        this.removeBufferByNo(buffer.no)
-      }
+      // MP4: keep buffer in pool — it covers the entire file and is needed for future seeks.
+      // HLS removes buffers after reading to free memory, but MP4 has only one segment.
     }
     this.isBufferReading = false
     return buffer

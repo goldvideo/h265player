@@ -33,6 +33,11 @@ export default class AudioPlayer extends BaseClass {
         this.end = true
       }
     })
+    // When player ends (e.g. video side triggers end), mark audio as ended too
+    // to prevent stale AudioPlayerWait from overriding end status
+    this.events.on(Events.PlayerEnd, () => {
+      this.end = true
+    })
   }
   bindNodeEvent() {
     this.addEventListener('seeked', () => {

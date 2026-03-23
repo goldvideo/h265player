@@ -91,7 +91,7 @@ export default class ImagePlayer extends BaseClass {
       this.events.emit(Events.ImagePlayerRenderEnd, time, image.duration)
       return image
     } else {
-      if (this.maxPTS && time >= this.maxPTS + this.fragDuration) {
+      if (this.maxPTS && time >= this.maxPTS) {
         this.status = 'end'
         this.events.emit(Events.ImagePlayerEnd, this.maxPTS)
         return

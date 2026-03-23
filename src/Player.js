@@ -571,8 +571,11 @@ class Player extends BaseClass {
     if (time < this.startTime) {
       return
     }
-    if (time >= this.duration * 1000) {
-      // Seeking to or past the end — trigger end state
+    const durationMs = this.duration * 1000
+    // Seeking near or past the end — trigger end state directly
+    if (durationMs > 0 && time >= durationMs - 200) {
+      this.currentTime = durationMs
+      this.events.emit(Events.PlayerTimeUpdate, durationMs)
       this.status = 'end'
       this.events.emit(Events.PlayerEnd)
       return
