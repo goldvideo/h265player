@@ -19,6 +19,7 @@ class MP4Demux {
     this.hvcc = null
     this.mp4boxfile = null
     this.maxVideoPTS = 0
+    this.maxAudioPTS = 0
     this.audioNotified = false
     this.initialized = false
     this.usingSampleExtractor = false
@@ -121,6 +122,14 @@ class MP4Demux {
     })
     if (pesList.length) {
       this.decode.push(pesList)
+      // Post maxPTS so AudioPlayer knows when to signal end (mirrors TsDemux behavior)
+      self.postMessage({
+        type: 'maxPTS',
+        data: {
+          maxAudioPTS: this.maxAudioPTS,
+          maxVideoPTS: this.maxVideoPTS
+        }
+      })
     }
   }
 
@@ -143,9 +152,10 @@ class MP4Demux {
     }
 
     const aacDataList = []
-    samples.forEach(sample => {
+    samples.forEach((sample, i) => {
       // Audio PTS in milliseconds (matching TS demuxer convention)
       const ptsMs = Math.round(sample.cts / sample.timescale * 1000)
+      this.maxAudioPTS = Math.max(this.maxAudioPTS, ptsMs)
       let audioData = sample.data
 
       // Wrap raw AAC frame in ADTS header so AudioContext.decodeAudioData() can parse it
@@ -153,11 +163,16 @@ class MP4Demux {
         audioData = this.wrapADTS(sample.data, this.audioConfig)
       }
 
-      aacDataList.push({
+      const item = {
         PTS: ptsMs,
         data_byte: audioData,
         duration: Math.round(sample.duration / sample.timescale * 1000)
-      })
+      }
+      // Mark last sample so AudioPlayer flushes its one-behind buffer
+      if (i === samples.length - 1) {
+        item.audioEnd = true
+      }
+      aacDataList.push(item)
     })
 
     if (aacDataList.length > 0) {

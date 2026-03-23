@@ -134,6 +134,17 @@ export default class Action extends BaseClass {
       this.player.currentTime = time
       this.player.play()
 
+    } else if (videoBuffered && this.audioPlayer.need) {
+      // Video buffered but audio not — seek video in-buffer,
+      // reset audio position and resume (avoids expensive full reset)
+      this.player.currentTime = time
+      try {
+        this.audioPlayer.currentTime = time
+      } catch(e) {
+        this.logger.warn('seek', 'audio seek failed, continuing without audio sync')
+      }
+      this.player.play()
+
     } else {
       this.reset()
     }
@@ -176,13 +187,16 @@ export default class Action extends BaseClass {
   onSeek(data, timer) {
     let currentTime = this.player.currentTime
     this.logger.info('onseek', currentTime, data, data.no, timer)
-    if (data && data.no && Math.abs(currentTime - Math.floor(timer * 1000)) < 2 ) {
+    if (data && data.no && Math.abs(currentTime - Math.floor(timer * 1000)) < 10 ) {
       this.player.currentIndex = data.no
       this.logger.info('seektime:', data.no, timer, this.player.currentTime)
       this.player.seekSegmentNo = data.no
       this.player.streamController.startLoad(data.no)
     } else {
       this.logger.warn('seek failue, not found data', currentTime, data, timer)
+      // Recover from failed seek — clear seeking state to avoid permanent spinner
+      this.player.seeking = false
+      this.player.pause()
     }
   }
   clearDrawHanlder() {
