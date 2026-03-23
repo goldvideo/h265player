@@ -77,6 +77,12 @@ export default class StreamController extends BaseClass {
     this.events.on(Events.DecodeFlushEnd, (data) => {
       this.logger.info('flushend>>>>>>>>>>>>>>>', data)
       this.imagePlayer.maxPTS = data
+      // If player is already waiting (all frames consumed before flush completed),
+      // check if we're past the end and trigger end event
+      if (this.player.status === 'wait' && data > 0 &&
+          this.player.currentTime >= data) {
+        this.events.emit(Events.PlayerEnd)
+      }
     })
   }
   checkDataReady(type) {

@@ -12,7 +12,7 @@ import AudioContextPlayer from './AudioContextPlayer'
 export default class AudioPlayer extends BaseClass {
   need = true
   first = false
-  offset = 0
+  _offset = 0
   currentPTS = 0
   ready = false
   end = false
@@ -153,11 +153,20 @@ export default class AudioPlayer extends BaseClass {
     return this.player.paused
   }
   send(data) {
-    if (!data.PTS) {
+    // Handle audioEnd before PTS check - audioEnd items may not have PTS
+    if (data.audioEnd) {
+      this.logger.info('push', 'audioEnd')
+      if (this.lastData) {
+        this.feed(this.lastData)
+        this.lastData = null
+      }
+      return
+    }
+    if (data.PTS == null) {
       this.need = false;
       this.events.emit(Events.AudioPlayerDataReady);
       return;
-    } 
+    }
     this.need = true;
     if (!this.audioDecoder) {
       this.logger.error('send', 'audioDecoder is:', this.audioDecoder)
@@ -167,12 +176,6 @@ export default class AudioPlayer extends BaseClass {
       this.stime = Date.now()
     }
     data = this.format(data)
-    if (data.audioEnd) {
-      this.logger.info('push', 'audioEnd')
-      this.feed(this.lastData)
-      this.lastData = null
-      return
-    }
 
     if (!this.first) {
       this.first = true
@@ -240,6 +243,9 @@ export default class AudioPlayer extends BaseClass {
     }
   }
   set offset(value) {
-    this.offset = value
+    this._offset = value
+  }
+  get offset() {
+    return this._offset
   }
 }

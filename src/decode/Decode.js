@@ -68,18 +68,23 @@ class Decode {
   }
   //receive data and start decode
   push(dataArray) {
+    let hasPartEnd = false
     dataArray.forEach(data => {
       let pts = data.PTS
       let pes = data.data_byte
-      let partEnd = data.partEnd
-      let lastTS = data.lastTS
       let ptsList = this.ptsList
       this.insertSort(ptsList, parseInt(pts * AV_TIME_BASE_Q * 1000))
       this.decodeTool.decodeData(pes, pts, this.p)
       if (this.decodeTool.checkData(this.p)) {
-        this.getDecodeYUV(this.p, partEnd, lastTS)
+        this.getDecodeYUV(this.p, false, false)
       }
+      if (data.partEnd) hasPartEnd = true
     })
+    // When all samples in this segment are done, flush decoder
+    // to extract remaining buffered frames (B-frames) and set maxPTS
+    if (hasPartEnd) {
+      this.flush()
+    }
   }
   getDecodeYUV(p, partEnd, lastTS) {
     if (this.reseting) {
@@ -90,8 +95,10 @@ class Decode {
       this.fps = this.getFPS()
     }
     let yuv = this.decodeTool.getYUV(p)
-    let pts = this.ptsList.shift()
-    yuv.pts = pts
+    // Both FFmpegDecode and PCWDecode now return PTS in milliseconds
+    let pts = yuv.pts
+    // Keep ptsList in sync for FPS calculation
+    this.ptsList.shift()
 
     if (this.previousPTS && pts) {
       duration = parseInt(pts - this.previousPTS)

@@ -294,6 +294,11 @@ class Player extends BaseClass {
       }
       this.duration = sourceData.duration
       this.tsNumber = sourceData.segments ? sourceData.segments.length : 0
+      // MP4: keep all decoded frames in buffer (no trimming)
+      // so in-buffer seek works without re-decoding
+      const fullDurationMs = this.duration * 1000 + 2000
+      this.maxBufferLength = fullDurationMs
+      this.imagePlayer.imageData.maxBufferLength = fullDurationMs
       this.streamController.setBaseInfo({
         duration: this.duration,
         tsNumber: this.tsNumber

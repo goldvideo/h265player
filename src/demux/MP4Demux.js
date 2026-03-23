@@ -104,15 +104,19 @@ class MP4Demux {
   handleVideoSamples(samples) {
     if (!samples || !samples.length) return
     const pesList = []
-    samples.forEach(sample => {
-      const pts = Math.round(sample.cts / sample.timescale * 1000)
+    samples.forEach((sample, i) => {
+      // Output PTS in 90kHz units to match TS demuxer convention.
+      // Decode.push() will convert via AV_TIME_BASE_Q * 1000 to ms.
+      const ptsMs = Math.round(sample.cts / sample.timescale * 1000)
+      const pts90k = Math.round(sample.cts / sample.timescale * 90000)
       const data = this.convertSampleToAnnexB(sample)
-      this.maxVideoPTS = Math.max(this.maxVideoPTS, pts)
+      this.maxVideoPTS = Math.max(this.maxVideoPTS, ptsMs)
+      const isLast = (i === samples.length - 1)
       pesList.push({
-        PTS: pts,
+        PTS: pts90k,
         data_byte: data,
-        partEnd: false,
-        lastTS: false
+        partEnd: isLast,
+        lastTS: isLast
       })
     })
     if (pesList.length) {
@@ -120,17 +124,95 @@ class MP4Demux {
     }
   }
 
-  handleAudioSamples() {
-    // Current audio pipeline expects ADTS; mp4 provides raw AAC.
-    // Notify end to avoid waiting.
-    if (!this.audioNotified) {
+  handleAudioSamples(samples) {
+    if (!samples || !samples.length) {
+      if (!this.audioNotified) {
+        self.postMessage({
+          type: 'demuxedAAC',
+          data: [],
+          audioEnd: true
+        })
+        this.audioNotified = true
+      }
+      return
+    }
+
+    // Get audio codec config for ADTS header generation
+    if (!this.audioConfig) {
+      this.audioConfig = this.getAudioConfig()
+    }
+
+    const aacDataList = []
+    samples.forEach(sample => {
+      // Audio PTS in milliseconds (matching TS demuxer convention)
+      const ptsMs = Math.round(sample.cts / sample.timescale * 1000)
+      let audioData = sample.data
+
+      // Wrap raw AAC frame in ADTS header so AudioContext.decodeAudioData() can parse it
+      if (this.audioConfig) {
+        audioData = this.wrapADTS(sample.data, this.audioConfig)
+      }
+
+      aacDataList.push({
+        PTS: ptsMs,
+        data_byte: audioData,
+        duration: Math.round(sample.duration / sample.timescale * 1000)
+      })
+    })
+
+    if (aacDataList.length > 0) {
       self.postMessage({
         type: 'demuxedAAC',
-        data: [],
-        audioEnd: true
+        data: aacDataList
       })
-      this.audioNotified = true
     }
+  }
+
+  /**
+   * Get audio codec configuration from mp4box track info
+   */
+  getAudioConfig() {
+    if (!this.mp4boxfile || !this.mp4boxfile.moov) return null
+    try {
+      for (const trak of this.mp4boxfile.moov.traks) {
+        if (trak.mdia && trak.mdia.hdlr && trak.mdia.hdlr.handlerType === 'soun') {
+          const stsd = trak.mdia.minf && trak.mdia.minf.stbl && trak.mdia.minf.stbl.stsd
+          if (stsd && stsd.entries && stsd.entries.length > 0) {
+            const entry = stsd.entries[0]
+            const sampleRate = entry.samplerate || 44100
+            const channelCount = entry.channel_count || 2
+            // AAC-LC profile = 2
+            const profile = 2
+            const sampleRates = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350]
+            let sampleRateIndex = sampleRates.indexOf(sampleRate)
+            if (sampleRateIndex === -1) sampleRateIndex = 4 // default 44100
+            return { profile, sampleRateIndex, channelCount }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[MP4Demux] Failed to get audio config:', e)
+    }
+    return null
+  }
+
+  /**
+   * Wrap raw AAC frame data in an ADTS header (7 bytes, no CRC)
+   */
+  wrapADTS(aacData, config) {
+    const frameLength = aacData.byteLength + 7
+    const header = new Uint8Array(7)
+    header[0] = 0xFF
+    header[1] = 0xF1 // MPEG-4, Layer 0, no CRC
+    header[2] = ((config.profile - 1) << 6) | (config.sampleRateIndex << 2) | ((config.channelCount >> 2) & 1)
+    header[3] = ((config.channelCount & 3) << 6) | ((frameLength >> 11) & 3)
+    header[4] = (frameLength >> 3) & 0xFF
+    header[5] = ((frameLength & 7) << 5) | 0x1F
+    header[6] = 0xFC
+    const result = new Uint8Array(frameLength)
+    result.set(header, 0)
+    result.set(new Uint8Array(aacData.buffer || aacData, aacData.byteOffset || 0, aacData.byteLength), 7)
+    return result
   }
 
   convertSampleToAnnexB(sample) {
@@ -325,25 +407,18 @@ class MP4Demux {
         return
       }
 
-      // Extract samples
+      // Extract audio FIRST so audioReady fires early (before video decode blocks)
+      this.extractFallbackAudio(moovOffset)
+
+      // Extract and decode video samples (batched with setTimeout)
       const samples = this.sampleExtractor.extractSamples(videoTrackOffset)
-      console.log('[MP4Demux] Extracted', samples.length, 'samples using fallback')
+      console.log('[MP4Demux] Extracted', samples.length, 'video samples using fallback')
 
       if (samples.length > 0) {
-        // Process all samples at once
         this.processExtractedSamples(samples)
       }
 
-      // Notify that we're done
       this.initialized = true
-      if (!this.audioNotified) {
-        self.postMessage({
-          type: 'demuxedAAC',
-          data: [],
-          audioEnd: true
-        })
-        this.audioNotified = true
-      }
     } catch (error) {
       console.error('[MP4Demux] Error in fallback sample extraction:', error)
     }
@@ -741,12 +816,236 @@ class MP4Demux {
   }
 
   /**
-   * Process extracted samples and send to decoder
-   * Uses batched async processing to avoid blocking the worker
+   * Extract audio samples in fallback mode
+   */
+  extractFallbackAudio(moovOffset) {
+    try {
+      const audioTrackOffset = this.findAudioTrackOffset(moovOffset)
+      if (audioTrackOffset < 0) {
+        console.log('[MP4Demux] No audio track found, skipping audio')
+        if (!this.audioNotified) {
+          self.postMessage({ type: 'demuxedAAC', data: [], audioEnd: true })
+          this.audioNotified = true
+        }
+        return
+      }
+
+      // Create a separate extractor for audio
+      const audioExtractor = new MP4SampleExtractor(
+        this.fullBuffer, moovOffset,
+        this.mp4boxfile.moov ? this.mp4boxfile.moov.size : 0,
+        null
+      )
+      const audioSamples = audioExtractor.extractSamples(audioTrackOffset)
+      console.log('[MP4Demux] Extracted', audioSamples.length, 'audio samples')
+
+      if (!audioSamples.length) {
+        if (!this.audioNotified) {
+          self.postMessage({ type: 'demuxedAAC', data: [], audioEnd: true })
+          this.audioNotified = true
+        }
+        return
+      }
+
+      // Get audio config for ADTS wrapping
+      const audioConfig = this.getAudioConfigFromBuffer(moovOffset)
+
+      const aacDataList = []
+      audioSamples.forEach((sample, i) => {
+        const sampleData = audioExtractor.getSampleData(sample)
+        if (!sampleData) return
+
+        const ptsMs = Math.round(sample.compositionTime * 1000 / sample.timescale)
+        let audioData = sampleData
+        if (audioConfig) {
+          audioData = this.wrapADTS(sampleData, audioConfig)
+        }
+        const item = {
+          PTS: ptsMs,
+          data_byte: audioData,
+        }
+        // Mark last sample with audioEnd so AudioPlayer flushes lastData
+        if (i === audioSamples.length - 1) {
+          item.audioEnd = true
+        }
+        aacDataList.push(item)
+      })
+
+      if (aacDataList.length > 0) {
+        self.postMessage({ type: 'demuxedAAC', data: aacDataList })
+        this.audioNotified = true
+      }
+    } catch (e) {
+      console.warn('[MP4Demux] Fallback audio extraction failed:', e)
+      if (!this.audioNotified) {
+        self.postMessage({ type: 'demuxedAAC', data: [], audioEnd: true })
+        this.audioNotified = true
+      }
+    }
+  }
+
+  /**
+   * Find audio track offset within moov box
+   */
+  findAudioTrackOffset(moovOffset) {
+    const buffer = this.fullBuffer
+    const dv = new DataView(buffer)
+    const moovSize = dv.getUint32(moovOffset)
+    const moovEnd = moovOffset + moovSize
+    let offset = moovOffset + 8
+
+    while (offset + 8 < moovEnd) {
+      const size = dv.getUint32(offset)
+      const type = String.fromCharCode(
+        dv.getUint8(offset + 4), dv.getUint8(offset + 5),
+        dv.getUint8(offset + 6), dv.getUint8(offset + 7)
+      )
+      if (type === 'trak') {
+        if (this.isAudioTrack(offset, offset + size)) {
+          return offset
+        }
+      }
+      if (size === 0 || size < 8) break
+      offset += size
+    }
+    return -1
+  }
+
+  /**
+   * Check if a trak box is an audio track
+   */
+  isAudioTrack(trakStart, trakEnd) {
+    const buffer = this.fullBuffer
+    const dv = new DataView(buffer)
+    let offset = trakStart + 8
+    while (offset + 8 < trakEnd) {
+      const size = dv.getUint32(offset)
+      const type = String.fromCharCode(
+        dv.getUint8(offset + 4), dv.getUint8(offset + 5),
+        dv.getUint8(offset + 6), dv.getUint8(offset + 7)
+      )
+      if (type === 'mdia') {
+        const mdiaEnd = offset + size
+        let mdiaOffset = offset + 8
+        while (mdiaOffset + 8 < mdiaEnd) {
+          const mdiaSize = dv.getUint32(mdiaOffset)
+          const mdiaType = String.fromCharCode(
+            dv.getUint8(mdiaOffset + 4), dv.getUint8(mdiaOffset + 5),
+            dv.getUint8(mdiaOffset + 6), dv.getUint8(mdiaOffset + 7)
+          )
+          if (mdiaType === 'hdlr') {
+            const handlerType = String.fromCharCode(
+              dv.getUint8(mdiaOffset + 16), dv.getUint8(mdiaOffset + 17),
+              dv.getUint8(mdiaOffset + 18), dv.getUint8(mdiaOffset + 19)
+            )
+            return handlerType === 'soun'
+          }
+          if (mdiaSize === 0 || mdiaSize < 8) break
+          mdiaOffset += mdiaSize
+        }
+      }
+      if (size === 0 || size < 8) break
+      offset += size
+    }
+    return false
+  }
+
+  /**
+   * Get audio config from buffer for ADTS header generation (fallback path)
+   */
+  getAudioConfigFromBuffer(moovOffset) {
+    try {
+      const audioTrackOffset = this.findAudioTrackOffset(moovOffset)
+      if (audioTrackOffset < 0) return null
+      const buffer = this.fullBuffer
+      const dv = new DataView(buffer)
+      // Find stsd in audio track's stbl
+      const stblOffset = this.findStblInTrack(audioTrackOffset)
+      if (!stblOffset) return null
+      const stblEnd = stblOffset + dv.getUint32(stblOffset)
+      let offset = stblOffset + 8
+      while (offset + 8 < stblEnd) {
+        const size = dv.getUint32(offset)
+        const type = String.fromCharCode(
+          dv.getUint8(offset + 4), dv.getUint8(offset + 5),
+          dv.getUint8(offset + 6), dv.getUint8(offset + 7)
+        )
+        if (type === 'stsd') {
+          // Parse audio sample entry: header(8) + version/flags(4) + entry_count(4) + entry
+          // AudioSampleEntry: header(8) + reserved(6) + data_ref_index(2) + reserved(8) + channelcount(2) + samplesize(2) + pre_defined(2) + reserved(2) + samplerate(4)
+          const entryOffset = offset + 16
+          const channelCount = dv.getUint16(entryOffset + 8 + 6 + 2 + 8)
+          const sampleRate = dv.getUint16(entryOffset + 8 + 6 + 2 + 8 + 2 + 2 + 2 + 2)
+          const sampleRates = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350]
+          let sampleRateIndex = sampleRates.indexOf(sampleRate)
+          if (sampleRateIndex === -1) sampleRateIndex = 4
+          console.log('[MP4Demux] Audio config from buffer:', { channelCount, sampleRate, sampleRateIndex })
+          return { profile: 2, sampleRateIndex, channelCount }
+        }
+        if (size === 0 || size < 8) break
+        offset += size
+      }
+    } catch (e) {
+      console.warn('[MP4Demux] Failed to get audio config from buffer:', e)
+    }
+    return null
+  }
+
+  /**
+   * Find stbl box inside a trak
+   */
+  findStblInTrack(trakOffset) {
+    const buffer = this.fullBuffer
+    const dv = new DataView(buffer)
+    const trakEnd = trakOffset + dv.getUint32(trakOffset)
+    let offset = trakOffset + 8
+    while (offset + 8 < trakEnd) {
+      const size = dv.getUint32(offset)
+      const type = String.fromCharCode(
+        dv.getUint8(offset + 4), dv.getUint8(offset + 5),
+        dv.getUint8(offset + 6), dv.getUint8(offset + 7)
+      )
+      if (type === 'mdia') {
+        const mdiaEnd = offset + size
+        let mdiaOff = offset + 8
+        while (mdiaOff + 8 < mdiaEnd) {
+          const mdiaSize = dv.getUint32(mdiaOff)
+          const mdiaType = String.fromCharCode(
+            dv.getUint8(mdiaOff + 4), dv.getUint8(mdiaOff + 5),
+            dv.getUint8(mdiaOff + 6), dv.getUint8(mdiaOff + 7)
+          )
+          if (mdiaType === 'minf') {
+            const minfEnd = mdiaOff + mdiaSize
+            let minfOff = mdiaOff + 8
+            while (minfOff + 8 < minfEnd) {
+              const minfSize = dv.getUint32(minfOff)
+              const minfType = String.fromCharCode(
+                dv.getUint8(minfOff + 4), dv.getUint8(minfOff + 5),
+                dv.getUint8(minfOff + 6), dv.getUint8(minfOff + 7)
+              )
+              if (minfType === 'stbl') return minfOff
+              if (minfSize === 0 || minfSize < 8) break
+              minfOff += minfSize
+            }
+          }
+          if (mdiaSize === 0 || mdiaSize < 8) break
+          mdiaOff += mdiaSize
+        }
+      }
+      if (size === 0 || size < 8) break
+      offset += size
+    }
+    return null
+  }
+
+  /**
+   * Process extracted samples and send to decoder in batches.
+   * Uses large batches with minimal delay to maximize throughput
+   * while still allowing the worker to send audio data between batches.
    */
   processExtractedSamples(samples) {
     console.log('[MP4Demux] processExtractedSamples:', samples.length, 'samples')
-    const BATCH_SIZE = 5
+    const BATCH_SIZE = 100
     let offset = 0
 
     const processBatch = () => {
@@ -759,29 +1058,26 @@ class MP4Demux {
         if (!sampleData) continue
 
         const data = this.convertExtractedSampleToAnnexB(sampleData, sample.is_sync)
-        const pts = Math.round(sample.compositionTime * 1000 / sample.timescale)
-        this.maxVideoPTS = Math.max(this.maxVideoPTS, pts)
+        const ptsMs = Math.round(sample.compositionTime * 1000 / sample.timescale)
+        const pts90k = Math.round(sample.compositionTime * 90000 / sample.timescale)
+        this.maxVideoPTS = Math.max(this.maxVideoPTS, ptsMs)
+        const isLast = (i === samples.length - 1)
 
         pesList.push({
-          PTS: pts,
+          PTS: pts90k,
           data_byte: data,
-          partEnd: false,
-          lastTS: false
+          partEnd: isLast,
+          lastTS: isLast
         })
       }
 
       if (pesList.length > 0) {
-        // Mark last sample of last batch
-        if (offset + BATCH_SIZE >= samples.length && pesList.length > 0) {
-          pesList[pesList.length - 1].partEnd = true
-          pesList[pesList.length - 1].lastTS = true
-        }
         this.decode.push(pesList)
       }
 
       offset = end
       if (offset < samples.length) {
-        setTimeout(processBatch, 16) // ~60fps pacing
+        setTimeout(processBatch, 0)
       }
     }
 

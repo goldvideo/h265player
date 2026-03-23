@@ -97,7 +97,6 @@ export default class ImagePlayer extends BaseClass {
         return
       }
       this.logger.warn('Events.ImagePlayerWait', time, this.start, this.end, this.maxPTS)
-      this.logger.warn('render', 'not yuv data')
       this.status = 'wait'
       this.ready = false
       this.events.emit(Events.ImagePlayerWait, 'image', 'this')

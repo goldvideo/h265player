@@ -4,6 +4,8 @@
  * @author: liuliguo 
  * @file: FFmpegDecode.js
  */
+import { AV_TIME_BASE_Q } from '../config/Config.js'
+
 export default class FFmpegDecode {
   constructor(decode) {
     this.decode = decode
@@ -35,7 +37,7 @@ export default class FFmpegDecode {
         buf_y: new Uint8Array(out_y),
         buf_u: new Uint8Array(out_u),
         buf_v: new Uint8Array(out_v),
-        pts
+        pts: parseInt(pts * AV_TIME_BASE_Q * 1000)
       }
       that.result.push(obj)
     })

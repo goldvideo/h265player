@@ -122,23 +122,14 @@ export default class DataProcessorController extends BaseClass {
       // 根据player的type确定媒体类型
       const mediaType = this.player.options && this.player.options.type ? this.player.options.type.toLowerCase() : 'ts'
 
-      console.log('[DataProcessorController] onStartDemux:', {
-        mediaType,
-        arrayBufferSize: data.arrayBuffer?.byteLength,
-        arrayBufferType: data.arrayBuffer?.constructor?.name,
-        isLast: this.isLast
-      })
-
-      // Always transfer the buffer to avoid data corruption from copying
-      // The demuxer only reads each buffer once
-      console.log('[DataProcessorController] Posting startDemux message to processor')
+      // Copy buffer instead of transferring ownership, so it remains
+      // available in the main thread for seek/re-demux after worker reset.
       this.processor.postMessage({
         type: 'startDemux',
         data: data.arrayBuffer,
         isLast: this.isLast,
         mediaType: mediaType
-      }, [data.arrayBuffer])
-      console.log('[DataProcessorController] startDemux message posted')
+      })
     } else {
       this.logger.error('onStartDemux', 'data is null', 'data:', data)
       console.error('[DataProcessorController] onStartDemux: data or arrayBuffer is missing', {

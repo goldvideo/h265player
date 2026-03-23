@@ -159,6 +159,26 @@ class MP4Loader extends BaseLoader {
       this.mp4Parser = new MP4Parser()
 
       if (!this.mp4Parser.parse(mp4Buffer)) {
+        // moov not found in initial range - likely at end of file (QuickTime format)
+        if (!this._retryingFull) {
+          this.logger.info('preload', 'moov not found in first 10MB, loading full file')
+          this._retryingFull = true
+          this.httpWorker.postMessage({
+            type: 'invoke',
+            fileType: 'mp4',
+            method: 'get',
+            name: 'preloadmp4',
+            url: this.sourceURL,
+            options: { headers: {} }  // No Range header - full file
+          })
+          return
+        }
+        throw new Error('Failed to parse MP4 metadata (moov box not found)')
+      }
+
+      this._retryingFull = false
+
+      if (!this.mp4Parser.parse(mp4Buffer)) {
         throw new Error('Failed to parse MP4 metadata')
       }
 

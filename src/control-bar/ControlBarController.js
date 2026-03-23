@@ -114,7 +114,6 @@ class ControlBarController extends BaseController {
       this.playButton.hide()
     })
     const eventsArr = [
-      Events.PlayerWait,
       Events.PlayerSeeking,
       Events.PlayerReset,
       Events.PlayerChangeRate,
@@ -125,10 +124,21 @@ class ControlBarController extends BaseController {
         this.waitingBar.showWaiting()
       })
     })
+    // Debounce PlayerWait to avoid flickering loading circle
+    // during brief decode gaps in MP4 playback
+    this.events.on(Events.PlayerWait, () => {
+      clearTimeout(this._waitDebounce)
+      this._waitDebounce = setTimeout(() => {
+        if (this.player && this.player.status === 'wait') {
+          this.waitingBar.showWaiting()
+        }
+      }, 500)
+    })
     this.events.on(Events.PlayerSeekEnd, () => {
       this.waitingBar.hideWaiting()
     })
     this.events.on(Events.PlayerPlay, () => {
+      clearTimeout(this._waitDebounce)
       this.waitingBar.hideWaiting()
       this.events.emit(Events.ControlBarPlay, this)
     })
@@ -136,6 +146,7 @@ class ControlBarController extends BaseController {
       this.events.emit(Events.ControlBarPause, this)
     })
     this.events.on(Events.PlayerPlaying, () => {
+      clearTimeout(this._waitDebounce)
       this.waitingBar.hideWaiting()
     })
     this.events.on(Events.PlayerOnSeek, time => {
