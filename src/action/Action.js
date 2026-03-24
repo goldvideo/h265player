@@ -237,17 +237,23 @@ export default class Action extends BaseClass {
       this.drawNext(vCurrentTime + fragDuration * playbackRate, fragDuration)
       return
     }
+    // Cap to prevent extremely slow playback after seek near end
+    let maxWait = fragDuration * 3
     if (delay > 0) {
       if (delay > fragDuration) {
+        // Audio far ahead — skip video frames to catch up
         nextTime = vCurrentTime + Math.ceil(delay / fragDuration + playbackRate) * fragDuration
-        fragDuration = nextTime - aCurrentTime
+        fragDuration = Math.max(nextTime - aCurrentTime, 1)
+        fragDuration = Math.min(fragDuration, maxWait)
       } else {
+        // Audio slightly ahead — speed up video a bit
         nextTime = vCurrentTime + fragDuration * playbackRate
-        fragDuration = fragDuration - delay
+        fragDuration = Math.max(fragDuration - delay, 1)
       }
     } else {
+      // Video ahead of audio — slow down slightly but cap the wait
       nextTime = vCurrentTime + fragDuration * playbackRate
-      fragDuration = fragDuration - delay
+      fragDuration = Math.min(fragDuration - delay, maxWait)
     }
     this.drawNext(nextTime, fragDuration)
   }
