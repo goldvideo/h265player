@@ -12,7 +12,7 @@ import observer from '../toolkit/Observer'
 
 function getAllChildren(node) {
   if (!node) {
-    return
+    return []
   }
   const result = [], stack = []
   stack.push(node)
@@ -67,7 +67,7 @@ const updateNode = (oldChild, newChild, oldParentNode) => {
   } else if (oldChild.nodeType === Node.TEXT_NODE && oldChild.nodeValue !== newChild.nodeValue) {
     oldChild.nodeValue = newChild.nodeValue 
   } else if (oldChild.setAttribute) {
-    Element.setAttributes(oldChild, newChild)
+    Element.setAttributes(oldChild, newChild.attributes)
   }
 }
 
@@ -131,6 +131,10 @@ class BaseComponent extends BaseClass {
     }
     div.innerHTML = html
     const node = div.firstElementChild
+    if (!node) {
+      this.logger.error('render:', 'template has no root element', 'html:', html)
+      return
+    }
     // replace the blank slot components of template
     const slotList = node.querySelectorAll('[' + Template.slotReplaceName + ']')
     for (const slot of slotList) {
@@ -197,13 +201,15 @@ class BaseComponent extends BaseClass {
       }
       if (!currentNode.isEqualNode(replaceNode)) {
         // console.error('currentNode and replaceNode innerHTML:', currentNode, replaceNode, currentNode.innerHTML, replaceNode.innerHTML)
-        const childNodesLength = Math.max(currentNode.childNodes.length, replaceNode.childNodes.length)
+        const oldChildren = Array.from(currentNode.childNodes)
+        const newChildren = Array.from(replaceNode.childNodes)
+        const childNodesLength = Math.max(oldChildren.length, newChildren.length)
         if (childNodesLength <= 0) {
           updateNode(currentNode, replaceNode, currentNode.parentNode)
         } else {
           for (let i = 0, l = childNodesLength; i < l; i++) {
-            const oldChild = currentNode.childNodes[i]
-            const newChild = replaceNode.childNodes[i]
+            const oldChild = oldChildren[i]
+            const newChild = newChildren[i]
             if (!oldChild && !newChild) {
               continue
             }
@@ -229,7 +235,10 @@ class BaseComponent extends BaseClass {
   }
 
   resetPosition() {
-    const $box = this.element.parentNode
+    const $box = this.element && this.element.parentNode
+    if (!$box) {
+      return
+    }
     const containerWidth = $box.offsetWidth
     const containerHeight = $box.offsetHeight
     this.element.style.marginTop = (containerHeight - this.element.offsetHeight) / 2 + 'px'
@@ -249,7 +258,7 @@ class BaseComponent extends BaseClass {
     ele.addEventListener(type, callback, useCapture)
     return {
       destroy() {
-        ele.removeEventListener(type, callback)
+        ele.removeEventListener(type, callback, useCapture)
       }
     }
   }
@@ -274,10 +283,10 @@ class BaseComponent extends BaseClass {
   }
 
   destroy() {
+    this.events.emit('Component_' + this.id + '.destroy', this)
     if (this.element && this.element.parentNode) {
       this.element.parentNode.removeChild(this.element)
     }
-    this.events.emit('Component_' + this.id + '.destroy', this)
     this.removeEventListenerAll()
   }
 
