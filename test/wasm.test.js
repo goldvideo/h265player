@@ -1,9 +1,49 @@
 /**
  * @jest-environment node
  */
-import Module from "../dist/lib/libffmpeg"
 import fs from 'fs'
 import path from 'path'
+
+jest.setTimeout(15000)
+
+let Module
+let originalFetch
+
+function loadModule() {
+    jest.resetModules()
+    originalFetch = global.fetch
+    global.fetch = undefined
+    const decoderModule = require('../dist/lib/libffmpeg')
+    global.fetch = originalFetch
+    return decoderModule
+}
+
+function waitForRuntime(module) {
+    return new Promise((resolve, reject) => {
+        if (module.calledRun && module.asm && module.asm._openDecoder) {
+            resolve()
+            return
+        }
+
+        const timeout = setTimeout(() => {
+            reject(new Error('Timed out waiting for libffmpeg runtime initialization'))
+        }, 10000)
+        const previousHandler = module.onRuntimeInitialized
+
+        module.onRuntimeInitialized = () => {
+            clearTimeout(timeout)
+            if (typeof previousHandler === 'function') {
+                previousHandler()
+            }
+            resolve()
+        }
+    })
+}
+
+beforeAll(async () => {
+    Module = loadModule()
+    await waitForRuntime(Module)
+})
 
 test('Check openDecoder', () => {
     expect(Module._openDecoder instanceof Function).toBe(true)

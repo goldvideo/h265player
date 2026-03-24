@@ -68,7 +68,16 @@ export default class Action extends BaseClass {
     if (player.status === 'pause') {
       return
     }
-    if (audioPlayer.status === 'waiting' || imagePlayer.status === 'wait') {
+    if (imagePlayer.status === 'wait') {
+      return
+    }
+    if (audioPlayer.status === 'waiting') {
+      // If near the end of the video, don't block — let video finish
+      let durationMs = player.duration * 1000
+      if (durationMs > 0 && time >= durationMs - 500) {
+        this.events.emit(Events.PlayerEnd)
+        return
+      }
       return
     }
     if (player.status === 'end') {

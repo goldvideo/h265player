@@ -27,20 +27,17 @@ export class Events {
 
   on(type, fn, once) {
     if (this.eventsQueue[type] === undefined) {
-      this.eventsQueue[type] = { methods: [], once: false }
+      this.eventsQueue[type] = { methods: [] }
     }
     if (typeof fn !== 'function') {
       logger.error('on', 'the argument is not function.', fn)
       return
     }
     // disallow repeat bind
-    if (this.disallowRepeat && (this.eventsQueue[type]['methods'].includes(fn))) {
+    if (this.disallowRepeat && (this.eventsQueue[type]['methods'].some(m => m.fn === fn))) {
       return
     }
-    (this.eventsQueue[type]).methods.push(fn)
-    if (once !== undefined) {
-      this.eventsQueue[type].once = once
-    }
+    (this.eventsQueue[type]).methods.push({ fn, once: !!once })
     return this.target
   }
 
@@ -63,7 +60,7 @@ export class Events {
     } else {
       let len = methods.length
       while(len--) {
-        if (methods[len] === fn) {
+        if (methods[len].fn === fn) {
           methods.splice(len, 1)
         }
       }
@@ -78,11 +75,12 @@ export class Events {
     }
     let methods = event.methods
     methods.forEach(method => {
-      method.apply(this.target, args)
+      method.fn.apply(this.target, args)
     })
-    // remove the event after first called
-    if (event.once) {
-      this.off(type)
+    // remove only listeners marked as once
+    event.methods = methods.filter(m => !m.once)
+    if (event.methods.length === 0) {
+      delete this.eventsQueue[type]
     }
     return this.target
   }
@@ -137,6 +135,9 @@ const getEvents = function(obj) {
   events(b).off('b.run', () => {}) // off b.run
   events(a).emit('b.run') // off different function
  */
+  // NOTE: Intentional centralized event bus pattern. The returned closure
+  // rebinds instance.target to the calling object on each access. Event handlers
+  // should use arrow functions to preserve their own `this` context.
   return (obj) => {
     instance.target = obj
     return instance

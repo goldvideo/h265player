@@ -45,6 +45,7 @@ export class Observer {
     const get = options.get
     target = target || self.data
     const object = self.object
+    const proxyCache = new WeakMap()
     const handle = {
       set(obj, prop, value) {
         if (typeof set === 'function') {
@@ -64,7 +65,10 @@ export class Observer {
           return get.call(self, obj, prop)
         }
         if (typeof obj[prop] === 'object' && obj[prop] !== null) {
-          return new Proxy(obj[prop], handle)
+          if (!proxyCache.has(obj[prop])) {
+            proxyCache.set(obj[prop], new Proxy(obj[prop], handle))
+          }
+          return proxyCache.get(obj[prop])
         } else {
           return Reflect.get(obj, prop)
         }

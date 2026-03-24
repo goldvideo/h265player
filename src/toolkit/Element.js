@@ -17,20 +17,6 @@ export default class Element {
     return el
   }
 
-  /**
-   * 
-   * @param {string} tagName 
-   * @param {HTMLElement} [extendEle] 
-   * @param {string} [extendEle] 
-   */
-  static registerElement(tagName, extendEle = HTMLElement, extendName) {
-    let el = document.registerElement(tagName, {
-      prototype: Object.create(extendEle.prototype),
-      extends: extendName
-    })
-    return el
-  }
-
   static addEl(el, parent) {
     if (el && parent) {
       try {
