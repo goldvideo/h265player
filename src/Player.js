@@ -273,7 +273,7 @@ class Player extends BaseClass {
     })
     this.events.on(Events.LoaderPlayListLoaded, data => {
       if (typeof this.options.afterLoadPlaylist == 'function') {
-        this.options.afterLoadPlaylist(this.laodData.sourceData)
+        this.options.afterLoadPlaylist(data.dataManage.sourceData)
       }
       let sourceData = data.dataManage.sourceData
       this.duration = sourceData.duration

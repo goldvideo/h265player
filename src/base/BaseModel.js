@@ -28,7 +28,7 @@ class BaseModel {
     return this
   }
   addAll(obj) {
-    for (let key in obj) {
+    for (const key of Object.keys(obj)) {
       this.add(key, obj[key])
     }
     return this

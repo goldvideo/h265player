@@ -143,7 +143,9 @@ class BaseComponent extends BaseClass {
         const ele = component.element
         if (Element.isElement(this.element)) {
           // replacing slot again should clone
-          slot.replaceWith(ele.cloneNode(true))
+          const cloned = ele.cloneNode(true)
+          slot.replaceWith(cloned)
+          component.element = cloned
         } else {
           slot.replaceWith(ele)
         }
@@ -272,7 +274,7 @@ class BaseComponent extends BaseClass {
   }
 
   destroy() {
-    if (this.element.parentNode) {
+    if (this.element && this.element.parentNode) {
       this.element.parentNode.removeChild(this.element)
     }
     this.events.emit('Component_' + this.id + '.destroy', this)

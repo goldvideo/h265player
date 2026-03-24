@@ -42,7 +42,7 @@ class BaseClass {
   }
 
   toString() {
-    return JSON.stringify(this)
+    return `[${this.constructor.name}]`
   }
 }
 
