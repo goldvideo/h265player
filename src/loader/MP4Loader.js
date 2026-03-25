@@ -3,7 +3,7 @@
  * All Rights Reserved.
  * @file MP4Loader
  * @desc
- * MP4 load module
+ * MP4 load module — range-based streaming
  * @author Jarry
  */
 
@@ -20,6 +20,11 @@ import SegmentModel from '../model/SegmentModel'
 import Events from '../config/EventsConfig'
 import Utils from '../utils/Utils'
 
+// Preload: first 1MB to get ftyp + moov
+const PRELOAD_SIZE = 1 * 1024 * 1024
+// Segment size for mdat splitting (~2MB per segment)
+const SEGMENT_BYTES = 2 * 1024 * 1024
+
 class MP4Loader extends BaseLoader {
   state = state.IDLE
 
@@ -32,13 +37,16 @@ class MP4Loader extends BaseLoader {
   mp4Meta = null
   mp4Parser = null
   sourceData = null
-  // segmentPool should be immutability
   segmentPool = [ /* new SegmentModel */ ]
 
   currentNo = null
   maxRetryCount = BUFFER.maxRetryCount
   mp4Buffer = null
   mp4FileSize = 0
+
+  // Range loading state
+  moovBuffer = null     // ArrayBuffer containing ftyp+moov (small, cached for reuse)
+  segmentCache = new Map()  // segmentNo → ArrayBuffer
 
   constructor(options) {
     super()
@@ -48,16 +56,12 @@ class MP4Loader extends BaseLoader {
     this.httpWorker = options.httpWorker
     this.setSegmentPool(new SegmentPool())
 
-    // 绑定Worker消息处理器
     this.onWorkerMessage = this.handleWorkerMessage.bind(this)
     if (this.httpWorker) {
       this.httpWorker.addEventListener('message', this.onWorkerMessage)
     }
   }
 
-  /**
-   * 统一处理Worker消息
-   */
   handleWorkerMessage(event) {
     const data = event.data
     const body = data.data
@@ -73,15 +77,17 @@ class MP4Loader extends BaseLoader {
 
     // 处理预加载响应
     if (data.name === 'preloadmp4') {
-      this.logger.info('handleWorkerMessage', 'receive mp4 header', 'size:', body.byteLength)
+      this.logger.info('handleWorkerMessage', 'receive mp4 preload', 'size:', body.byteLength)
       this.handlePreloadResponse(data, body, this.preloadCallback)
     }
     // 处理分片加载响应
     else if (typeof data.name === 'number') {
-      this.logger.info('handleWorkerMessage', 'read success', 'segment no:', data.name)
+      this.logger.info('handleWorkerMessage', 'segment loaded', 'no:', data.name)
       this.state = state.IDLE
-      // Note: HTTP Worker sends data.arrayBuffer as Uint8Array, which is what we need
-      // MP4DataManage will handle it correctly in createBuffer
+
+      // Cache raw segment data
+      this.segmentCache.set(data.name, data.arrayBuffer)
+
       this.events.emit(Events.LoaderLoaded, data, this.currentSegment, this.currentType, this.currentTime)
     }
     else {
@@ -90,10 +96,9 @@ class MP4Loader extends BaseLoader {
   }
 
   /**
-   * 预加载MP4文件头，获取元数据
+   * Preload: small Range request for moov metadata only
    */
   preload(callback) {
-    // 确保 sourceURL 已就绪
     if (!this.sourceURL) {
       if (this.options && this.options.sourceURL) {
         this.sourceURL = this.options.sourceURL
@@ -102,19 +107,15 @@ class MP4Loader extends BaseLoader {
         this.logger.error('preload', content)
         this.events.emit(Events.PlayerAlert, content)
         this.events.emit(Events.LoaderError, content, {})
-        const errors = [this.state, 'load mp4 error.', 'data:', {}, content]
-        this.events.emit(Events.PlayerThrowError, errors)
+        this.events.emit(Events.PlayerThrowError, [this.state, 'load mp4 error.', content])
         return
       }
     }
 
     this.logger.info('preload', 'start preload mp4 metadata', 'url:', this.sourceURL)
-
-    // 保存回调供handleWorkerMessage使用
     this.preloadCallback = callback
 
-    // 请求足够大的文件范围来获取完整的 moov box（通常需要 5-10MB）
-    // 对于大多数 MP4 文件，moov box 包含在前 10MB 内
+    // Request only first 1MB — enough for ftyp + moov in most MP4 files
     this.httpWorker.postMessage({
       type: 'invoke',
       fileType: 'mp4',
@@ -123,18 +124,14 @@ class MP4Loader extends BaseLoader {
       url: this.sourceURL,
       options: {
         headers: {
-          'Range': 'bytes=0-10485759'  // 10MB - 足以包含大多数 MP4 的完整 moov box
+          'Range': `bytes=0-${PRELOAD_SIZE - 1}`
         }
       }
     })
   }
 
-  /**
-   * 处理预加载响应
-   */
   handlePreloadResponse(data, buffer, callback) {
     try {
-      // 统一转为 ArrayBuffer，避免 DataView 类型错误
       let mp4Buffer = null
       if (data.arrayBuffer && data.arrayBuffer.buffer instanceof ArrayBuffer) {
         mp4Buffer = data.arrayBuffer.buffer
@@ -145,23 +142,20 @@ class MP4Loader extends BaseLoader {
       } else if (typeof Blob !== 'undefined' && buffer instanceof Blob) {
         buffer.arrayBuffer().then(arrBuf => {
           this.handlePreloadResponse(data, arrBuf, callback)
-        }).catch(err => {
-          throw err
-        })
+        }).catch(err => { throw err })
         return
       }
 
       if (!mp4Buffer || !(mp4Buffer instanceof ArrayBuffer)) {
-        throw new Error('Invalid buffer: expected ArrayBuffer, got ' + (buffer ? buffer.constructor.name : typeof mp4Buffer))
+        throw new Error('Invalid buffer: expected ArrayBuffer')
       }
 
-      // 解析MP4元数据
       this.mp4Parser = new MP4Parser()
 
       if (!this.mp4Parser.parse(mp4Buffer)) {
-        // moov not found in initial range - likely at end of file (QuickTime format)
+        // moov not in first 1MB — retry with full file
         if (!this._retryingFull) {
-          this.logger.info('preload', 'moov not found in first 10MB, loading full file')
+          this.logger.info('preload', 'moov not found in first 1MB, loading full file')
           this._retryingFull = true
           this.httpWorker.postMessage({
             type: 'invoke',
@@ -169,7 +163,7 @@ class MP4Loader extends BaseLoader {
             method: 'get',
             name: 'preloadmp4',
             url: this.sourceURL,
-            options: { headers: {} }  // No Range header - full file
+            options: { headers: {} }
           })
           return
         }
@@ -178,35 +172,71 @@ class MP4Loader extends BaseLoader {
 
       this._retryingFull = false
 
-      if (!this.mp4Parser.parse(mp4Buffer)) {
-        throw new Error('Failed to parse MP4 metadata')
+      const metadata = this.mp4Parser.getMetadata()
+      const mdatBox = this.mp4Parser.getMdatBox()
+      const moovEnd = this.mp4Parser.getMoovEndOffset()
+
+      this.logger.info('preload', 'metadata:', metadata,
+        'moovEnd:', moovEnd, 'mdat:', mdatBox)
+
+      // Cache moov region (ftyp + moov) for prepending to each segment
+      // Use moovEnd to determine the exact size needed
+      const moovSize = Math.min(moovEnd, mp4Buffer.byteLength)
+      this.moovBuffer = mp4Buffer.slice(0, moovSize)
+
+      // Build segment pool based on mdat byte ranges
+      this.segmentPool = new SegmentPool()
+
+      if (mdatBox && mdatBox.size > 0) {
+        // Split mdat into ~2MB segments
+        const mdatStart = mdatBox.offset
+        const mdatEnd = mdatBox.offset + mdatBox.size
+        const segmentSize = SEGMENT_BYTES
+        const duration = metadata.duration
+        const totalMdatSize = mdatBox.size
+        let segNo = 1
+
+        for (let byteOff = mdatStart; byteOff < mdatEnd; byteOff += segmentSize) {
+          const segByteEnd = Math.min(byteOff + segmentSize - 1, mdatEnd - 1)
+          // Estimate time range proportionally from byte position
+          const startFrac = (byteOff - mdatStart) / totalMdatSize
+          const endFrac = (segByteEnd + 1 - mdatStart) / totalMdatSize
+          const startTime = startFrac * duration
+          const endTime = endFrac * duration
+
+          this.segmentPool.push(new SegmentModel({
+            no: segNo,
+            name: `segment_${segNo}`,
+            start: startTime,
+            end: endTime,
+            duration: endTime - startTime,
+            byteStart: byteOff,
+            byteEnd: segByteEnd
+          }))
+          segNo++
+        }
+      } else {
+        // Fallback: single full-file segment (no mdat info)
+        this.segmentPool.push(new SegmentModel({
+          no: 1,
+          name: 'full',
+          start: 0,
+          end: metadata.duration,
+          duration: metadata.duration
+        }))
+        this.maxBufferDuration = Math.max(this.maxBufferDuration, metadata.duration + 1)
       }
 
-      const metadata = this.mp4Parser.getMetadata()
-      this.logger.info('preload', 'MP4 metadata:', metadata)
+      this.logger.info('preload', 'segments:', this.segmentPool.length)
 
-      // 仅保留一个整文件分片，避免为每个分片重复请求整文件
-      const fullSegment = new SegmentModel({
-        no: 1,
-        name: 'full',
-        start: 0,
-        end: metadata.duration,
-        duration: metadata.duration
-      })
-      this.segmentPool = new SegmentPool()
-      this.segmentPool.push(fullSegment)
-
-      // 放宽缓冲限制到整段时长，防止 checkLoadCondition 拦截
-      this.maxBufferDuration = Math.max(this.maxBufferDuration, metadata.duration + 1)
-
-      // 保存元数据
       this.setSourceData({
         duration: metadata.duration,
         width: metadata.width,
         height: metadata.height,
         videoTrack: metadata.videoTrack,
         audioTrack: metadata.audioTrack,
-        segments: this.segmentPool
+        segments: this.segmentPool,
+        moovBuffer: this.moovBuffer
       })
 
       if (typeof callback === 'function') {
@@ -218,8 +248,7 @@ class MP4Loader extends BaseLoader {
       const content = `Parse MP4 file error: ${error.message}`
       this.events.emit(Events.PlayerAlert, content)
       this.events.emit(Events.LoaderError, content, error)
-      const errors = [this.state, 'parse mp4 error.', error]
-      this.events.emit(Events.PlayerThrowError, errors)
+      this.events.emit(Events.PlayerThrowError, [this.state, 'parse mp4 error.', error])
     }
   }
 
@@ -259,18 +288,15 @@ class MP4Loader extends BaseLoader {
   }
 
   checkLoadCondition(segment) {
-    // 检查分片号
     if (segment.no > this.segmentPool.length) {
       return false
     }
 
-    // 安全地检查缓冲区时长
     const bufferPool = this.dataController.getMP4BufferPool()
     if (!bufferPool || !bufferPool.length) {
-      return true  // 缓冲区为空，可以加载
+      return true
     }
 
-    // 计算缓冲区时长
     const bufferDuration = bufferPool[bufferPool.length - 1].end -
                            (bufferPool[0]?.start || 0)
 
@@ -284,54 +310,49 @@ class MP4Loader extends BaseLoader {
   }
 
   /**
-   * 加载MP4分片
-   * 支持HTTP Range请求按需加载
-   * @param {SegmentModel} segment
-   * @param {String} type [optional] 'seek' or 'play'
-   * @param {Number} time [optional] millisecond
+   * Load MP4 segment via HTTP Range request
    */
   loadFile(segment, type, time) {
     if (!(segment instanceof SegmentModel)) {
       return
     }
 
-    // 验证type
     if (!['play', 'seek', 'start'].includes(type)) {
-      this.logger.warn('loadFile', 'invalid type:', type)
       type = 'play'
     }
 
-    // 验证time
     if (typeof time !== 'number' || isNaN(time)) {
       time = 0
     }
-    if (time < 0) {
-      this.logger.warn('loadFile', 'negative time:', time)
-      time = 0
-    }
+    if (time < 0) time = 0
 
-    // only single load process
-    if(this.isNotFree() && type !== 'seek' && type !== 'start') {
+    if (this.isNotFree() && type !== 'seek' && type !== 'start') {
       this.logger.warn('loadFile', 'is loading', 'segment:', segment, 'type:', type)
       return
     }
 
     if (!this.checkLoadCondition(segment)) {
       this.state = state.IDLE
-      this.logger.warn('loadFile', 'checkLoadCondition failed', 'segment:', segment, 'type:', type)
+      this.logger.warn('loadFile', 'checkLoadCondition failed')
       return
     }
 
     this.currentNo = segment.no
-    // 保存当前段、类型、时间供handleWorkerMessage使用
     this.currentSegment = segment
     this.currentType = type
     this.currentTime = time
 
-    let retryCount = 1
-    // 使用最新的 sourceURL（可能由 changeSrc/switchPlaylist 更新）
-    const url = this.sourceURL || this.options.sourceURL
+    // Check segment cache first
+    const cached = this.segmentCache.get(segment.no)
+    if (cached) {
+      this.logger.info('loadFile', 'cache hit, segment:', segment.no)
+      this.state = state.IDLE
+      const outData = { name: segment.no, fileType: 'mp4', arrayBuffer: cached }
+      this.events.emit(Events.LoaderLoaded, outData, segment, type, time)
+      return
+    }
 
+    const url = this.sourceURL || this.options.sourceURL
     const _getRequestURL = (url, segment) => {
       if (typeof this.options.processURL == 'function') {
         return this.options.processURL(url, segment)
@@ -339,43 +360,37 @@ class MP4Loader extends BaseLoader {
       return url
     }
 
-    const _send = () => {
-      // MP4使用整个文件，无需Range请求分片
-      this.httpWorker.postMessage({
-        type: 'invoke',
-        fileType: 'mp4',
-        method: 'get',
-        name: segment.no,
-        url: _getRequestURL(url, segment),
-        options: {
-          headers: {
-            // 可选：根据需要使用Range请求特定区域
-            // 'Range': `bytes=${start}-${end}`
-          }
-        }
-      })
+    const headers = {}
+    if (segment.byteStart > 0 || segment.byteEnd > 0) {
+      headers['Range'] = `bytes=${segment.byteStart}-${segment.byteEnd}`
+      this.logger.info('loadFile', 'Range:', headers['Range'], 'segment:', segment.no)
     }
+
+    this.httpWorker.postMessage({
+      type: 'invoke',
+      fileType: 'mp4',
+      method: 'get',
+      name: segment.no,
+      url: _getRequestURL(url, segment),
+      options: { headers }
+    })
 
     this.state = state.LOADING
     this.events.emit(Events.LoaderLoading, segment, type, time)
-    _send()
   }
 
   destroy() {
-    // 移除事件监听器
     if (this.httpWorker && this.onWorkerMessage) {
       this.httpWorker.removeEventListener('message', this.onWorkerMessage)
     }
 
-    // 清空回调
     this.preloadCallback = null
-
-    // 清空数据
     this.mp4Parser = null
     this.sourceData = null
+    this.moovBuffer = null
+    this.segmentCache.clear()
     this.segmentPool.length = 0
 
-    // 终止Worker
     if (this.httpWorker) {
       this.httpWorker.terminate()
       this.httpWorker = null

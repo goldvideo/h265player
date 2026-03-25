@@ -105,9 +105,8 @@ class MP4DataManage extends BaseClass {
       this.readBufferByNo(segment.no)
     }
 
-    // MP4 是整文件加载，不要像 HLS 那样链式预取下一个分片，否则会重复拉取整个文件导致内存/崩溃
-    const isMP4 = (this.options.type || '').toUpperCase() === 'MP4'
-    if (!isMP4 && this.segmentPool.length > 0 && segment.no < this.segmentPool.getLast().no) {
+    // Chain loading: after segment N loads, load segment N+1
+    if (this.segmentPool.length > 0 && segment.no < this.segmentPool.getLast().no) {
       this.loadSegmentByNo(segment.no + 1)
     }
   }
@@ -157,7 +156,7 @@ class MP4DataManage extends BaseClass {
       end: segment.end,
       no: segment.no,
       duration: segment.end - segment.start,
-      // blob: data.blob,
+      byteStart: segment.byteStart || 0,
       arrayBuffer: data.arrayBuffer
     }
     return new BufferModel(buffer)
