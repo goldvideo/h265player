@@ -91,9 +91,9 @@ export default class DataProcessorController extends BaseClass {
   }
   reset() {
     this.isLast = false
-    this.processor.terminate()
-    this.initNormalWorker()
-    this.loadjs()
+    // Reset in-place: Worker stays alive, WASM stays loaded.
+    // Only decoder state and demuxer are rebuilt.
+    this.processor.postMessage({ type: 'reset' })
   }
   onFlushEnd(data) {
     this.events.emit(Events.DecodeFlushEnd, data)

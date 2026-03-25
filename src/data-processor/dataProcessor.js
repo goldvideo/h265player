@@ -45,6 +45,24 @@ export default self => {
       case 'flush':
         self.decode.flush()
         break
+      case 'reset':
+        // 1. Cancel old mp4Demuxer's async processBatch chain FIRST
+        //    to prevent it from feeding stale data to the reset decoder
+        if (self.mp4Demuxer) {
+          self.mp4Demuxer.cancelled = true
+        }
+        // 2. Reset decoder (close + reopen, WASM Module stays loaded)
+        self.decode.reset()
+        // 3. Create fresh mp4Demuxer instance (mp4box.iife.js already
+        //    in global scope, ensureMP4Box() will skip importScripts)
+        if (self.mp4Demuxer) {
+          self.mp4Demuxer = new MP4Demux(self.decode, workerLibPath)
+        }
+        // 4. Reset TS demuxer
+        if (self.demuxer) {
+          self.demuxer = new TsDemux(self.decode)
+        }
+        break
     }
   }
 }

@@ -143,17 +143,6 @@ export default class Action extends BaseClass {
       this.player.currentTime = time
       this.player.play()
 
-    } else if (videoBuffered && this.audioPlayer.need) {
-      // Video buffered but audio not — seek video in-buffer,
-      // reset audio position and resume (avoids expensive full reset)
-      this.player.currentTime = time
-      try {
-        this.audioPlayer.currentTime = time
-      } catch(e) {
-        this.logger.warn('seek', 'audio seek failed, continuing without audio sync')
-      }
-      this.player.play()
-
     } else {
       this.reset()
     }
@@ -227,6 +216,10 @@ export default class Action extends BaseClass {
     let fragDuration = imagePlayer.fragDuration
     let delay = aCurrentTime - vCurrentTime
     let nextTime = 0
+
+    // Periodically trim old buffers to free memory (every ~2 seconds of playback)
+    this.trimBuffers(vCurrentTime)
+
     //no audio
     if (!audioPlayer.need) {
       this.drawNext(time + gap, Math.ceil(gap / playbackRate))
@@ -237,8 +230,16 @@ export default class Action extends BaseClass {
       this.drawNext(vCurrentTime + fragDuration * playbackRate, fragDuration)
       return
     }
+    // If audio time is wildly out of sync (e.g. after backward seek when audio
+    // buffers were depleted), ignore A/V sync and render at normal speed.
+    // This prevents the "extremely slow playback" bug.
+    let absDelay = Math.abs(delay)
+    if (absDelay > 2000) {
+      this.drawNext(time + gap, Math.ceil(gap / playbackRate))
+      return
+    }
     // Cap to prevent extremely slow playback after seek near end
-    let maxWait = fragDuration * 3
+    let maxWait = fragDuration * 2
     if (delay > 0) {
       if (delay > fragDuration) {
         // Audio far ahead — skip video frames to catch up
@@ -256,6 +257,29 @@ export default class Action extends BaseClass {
       fragDuration = Math.min(fragDuration - delay, maxWait)
     }
     this.drawNext(nextTime, fragDuration)
+  }
+  /**
+   * Trim old video and audio buffers that are well behind the current playback
+   * position to keep memory usage bounded for long videos.
+   * Called periodically from onRenderEnd.
+   */
+  trimBuffers(currentTime) {
+    // Only trim every ~2 seconds to avoid overhead
+    if (this._lastTrimTime && currentTime - this._lastTrimTime < 2000) {
+      return
+    }
+    this._lastTrimTime = currentTime
+
+    // Keep a safety margin before current position (e.g. 5 seconds)
+    let trimBefore = currentTime - 5000
+    if (trimBefore <= 0) {
+      return
+    }
+    // Trim audio buffers
+    if (this.audioPlayer && typeof this.audioPlayer.trimBuffer === 'function') {
+      this.audioPlayer.trimBuffer(trimBefore)
+    }
+    // Video trimming is handled by ImageData.checkBuffer via maxBufferLength
   }
   drawNext(time, spanTime) {
     if (this.drawFrameHanlder) {

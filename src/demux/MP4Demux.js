@@ -1064,6 +1064,8 @@ class MP4Demux {
     let offset = 0
 
     const processBatch = () => {
+      // Stop if this demuxer instance was cancelled during reset
+      if (this.cancelled) return
       const pesList = []
       const end = Math.min(offset + BATCH_SIZE, samples.length)
 
