@@ -137,13 +137,12 @@ export default class AudioContextPlayer extends BaseClass {
     }
     set currentTime(time) {
         this.audioTime = time
-        while(this.decodedBuffer.length > 0) {
-            let tmpBuffer = this.decodedBuffer.shift()
-            if(tmpBuffer.startTime <= time && tmpBuffer.startTime + tmpBuffer.duration > time) {
-                tmpBuffer.loadedPosition = parseInt(tmpBuffer.length * (time - tmpBuffer.startTime) / tmpBuffer.duration)
-                this.decodedBuffer.unshift(tmpBuffer)
-                break;
-            }
+        // Use CommonProcessor's seekTo to reposition the read pointer
+        // without destroying any buffers
+        let found = this.audioProvider.seekTo(time)
+        if (found) {
+            // Reset waiting state since we have data at the new position
+            this.isWaiting = false
         }
         //sync trigger seeked event
         setTimeout(() => {
@@ -166,15 +165,24 @@ export default class AudioContextPlayer extends BaseClass {
             handler.call()
         }
     }
+    /**
+     * Trim audio buffers before the given time (seconds) to free memory.
+     */
+    trimBuffer(time) {
+        this.audioProvider.trim(time)
+    }
     buffer() {
-        let start = 0
         if(this.decodedBuffer.length > 0) {
-            let tmp = this.decodedBuffer[0]
-            start = tmp.startTime
+            let first = this.decodedBuffer[0]
+            let last = this.decodedBuffer[this.decodedBuffer.length - 1]
+            return {
+                start: first.startTime * 1000,
+                end: parseInt((last.startTime + last.duration) * 1000)
+            }
         }
         return {
-            start: start * 1000,
-            end: parseInt(this.delay * 1000)
+            start: 0,
+            end: 0
         }
     }
     get volume() {

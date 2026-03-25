@@ -260,6 +260,15 @@ export default class AudioPlayer extends BaseClass {
       }
     }
   }
+  /**
+   * Trim audio buffers before the given time (ms, absolute PTS) to free memory.
+   */
+  trimBuffer(time) {
+    if (!this.useJMuxer && this.player && typeof this.player.trimBuffer === 'function') {
+      // Convert absolute PTS (ms) to relative time (seconds) for AudioContextPlayer
+      this.player.trimBuffer((time - this.offset) / 1000)
+    }
+  }
   set offset(value) {
     this._offset = value
   }
