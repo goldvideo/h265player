@@ -53,6 +53,7 @@ class MP4Parser {
       bitrate: 0
     }
     this.moovBox = null
+    this.mdatBox = null
     this.segments = []
   }
 
@@ -113,6 +114,8 @@ class MP4Parser {
 
       if (type === BOX_TYPES.MOOV) {
         this.moovBox = { offset, size, type }
+      } else if (type === BOX_TYPES.MDAT) {
+        this.mdatBox = { offset, size }
       }
 
       offset += size
@@ -493,6 +496,21 @@ class MP4Parser {
       width: this.metadata.width,
       height: this.metadata.height
     }
+  }
+
+  /**
+   * moov box 结束偏移（preload 至少需要下载到这里）
+   */
+  getMoovEndOffset() {
+    if (!this.moovBox) return 0
+    return this.moovBox.offset + this.moovBox.size
+  }
+
+  /**
+   * mdat box 信息
+   */
+  getMdatBox() {
+    return this.mdatBox
   }
 }
 

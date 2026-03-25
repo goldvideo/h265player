@@ -26,13 +26,22 @@ export default self => {
     let mediaType = data.mediaType || 'ts'
 
     switch (type) {
+      case 'initMoov':
+        // Initialize mp4box with moov data — only parse tracks, don't extract samples
+        if (!self.mp4Demuxer) {
+          self.mp4Demuxer = new MP4Demux(self.decode, workerLibPath)
+        }
+        self.mp4Demuxer.appendMoov(buffer)
+        break
       case 'startDemux':
         if (mediaType === 'mp4') {
           if (!self.mp4Demuxer) {
             self.mp4Demuxer = new MP4Demux(self.decode, workerLibPath)
           }
           self.mp4Demuxer.isLast = isLast
-          self.mp4Demuxer.push(buffer)
+          // Use explicit file offset for range-loaded segments
+          let fileStart = data.byteStart
+          self.mp4Demuxer.push(buffer, fileStart > 0 ? fileStart : undefined)
         } else {
           self.demuxer.isLast = isLast
           self.demuxer.push(buffer)
