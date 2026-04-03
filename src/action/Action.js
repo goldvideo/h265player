@@ -46,6 +46,11 @@ export default class Action extends BaseClass {
     this.logger.warn('play', 'play start')
     this.sync(currentTime)
   }
+  finishSeekIfNeeded() {
+    if (this.player.seeking) {
+      this.player.seeking = false
+    }
+  }
   sync(time) {
     let player = this.player
     let audioPlayer = this.audioPlayer
@@ -59,9 +64,6 @@ export default class Action extends BaseClass {
       maxTime = vOffset
     }
     let playbackRate = player.playbackRate
-    if (player.seeking) {
-      player.seeking = false
-    }
     if (player.reseting) {
       return
     }
@@ -77,6 +79,12 @@ export default class Action extends BaseClass {
       if (durationMs > 0 && time >= durationMs - 500) {
         this.events.emit(Events.PlayerEnd)
         return
+      }
+      if (player.seeking && imagePlayer.isBuffered(time)) {
+        const renderTime = imagePlayer.getRenderTime(time)
+        this.setCurrentTime(renderTime)
+        this.finishSeekIfNeeded()
+        imagePlayer.render(renderTime)
       }
       return
     }
@@ -94,6 +102,7 @@ export default class Action extends BaseClass {
     //only play audio
     if (audioPlayer.need && time >= aOffset && time <= vOffset) {
       this.events.once(Events.AudioPlayerPlaySuccess, () => {
+        this.finishSeekIfNeeded()
         imagePlayer.render(vOffset)
       })
       audioPlayer.playbackRate = playbackRate
@@ -102,11 +111,13 @@ export default class Action extends BaseClass {
     }
     //only play image
     if (time >= vOffset && (!audioPlayer.need || time <= aOffset)) {
+      this.finishSeekIfNeeded()
       imagePlayer.render(time)
       return
     }
     //audio and image start play
     if (time > maxTime) {
+      this.finishSeekIfNeeded()
       this.audioPlayer.playbackRate = playbackRate
       this.audioPlayer.play()
       imagePlayer.render(time)
@@ -121,6 +132,26 @@ export default class Action extends BaseClass {
     this.player.currentTime = time
     this.events.emit(Events.PlayerTimeUpdate, time)
   }
+  resumeBufferedSeek(time, syncAudio = true) {
+    this.player.currentTime = time
+    if (syncAudio) {
+      try {
+        this.audioPlayer.currentTime = time
+      } catch (e) {
+        this.logger.warn('seek', 'audio seek failed, continue with video frame seek')
+      }
+    }
+    this.finishSeekIfNeeded()
+    // Render the first frame immediately so seek does not pause for an extra
+    // turn of the event loop waiting on audio seek/play callbacks.
+    this.imagePlayer.render(time)
+    if (this.audioPlayer.need) {
+      this.audioPlayer.playbackRate = this.player.playbackRate
+      this.audioPlayer.play()
+    }
+    this.player.status = 'playing'
+    this.events.emit(Events.PlayerPlay, this.player)
+  }
 
   pause() {
     this.audioPlayer.pause()
@@ -129,19 +160,21 @@ export default class Action extends BaseClass {
   seek(time) {
     let videoBuffered = this.imagePlayer.isBuffered(time)
     let audioBuffered = this.audioPlayer.isBuffered(time)
+    let renderTime = videoBuffered ? this.imagePlayer.getRenderTime(time) : time
     this.player.pause()
     //video and audio have the same time period
     if (videoBuffered && audioBuffered) {
       this.logger.warn('seek', `seek in buffer, time: ${time}, buffer: ${this.player.buffer()[0]}, ${this.player.buffer()[1]}`)
-      this.audioPlayer.onSeekedHandler = () => {
-        this.player.play()
-      }
-      this.audioPlayer.currentTime = time
+      this.resumeBufferedSeek(renderTime, true)
 
     } else if (videoBuffered && !this.audioPlayer.need) {
       // MP4 with no audio sync: seek directly within video buffer
-      this.player.currentTime = time
-      this.player.play()
+      this.resumeBufferedSeek(renderTime, false)
+
+    } else if (videoBuffered && this.audioPlayer.need) {
+      // HLS: if video is already buffered, resume from the nearest decodable
+      // frame instead of resetting the whole pipeline just because audio lags.
+      this.resumeBufferedSeek(renderTime, true)
 
     } else {
       this.reset()

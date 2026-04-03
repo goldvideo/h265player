@@ -117,7 +117,7 @@ class MP4Demux {
         PTS: pts90k,
         data_byte: data,
         partEnd: isLast,
-        lastTS: isLast
+        lastTS: isLast && !!this.isLast
       })
     })
     if (pesList.length) {
@@ -1088,7 +1088,7 @@ class MP4Demux {
           PTS: pts90k,
           data_byte: data,
           partEnd: isLast,
-          lastTS: isLast
+          lastTS: isLast && !!this.isLast
         })
       }
 
@@ -1191,4 +1191,3 @@ class MP4Demux {
 }
 
 export default MP4Demux
-

@@ -38,6 +38,13 @@ export default class DataProcessorController extends BaseClass {
   initNormalWorker() {
     this.processor = this.initWorker()
   }
+  replaceWorker() {
+    if (this.processor) {
+      this.processor.terminate()
+    }
+    this.processor = this.initWorker()
+    this.loadjs()
+  }
   initWorker() {
     let processor = webworkify(require.resolve('./dataProcessor.js'))
     processor.onmessage = (event) => {
@@ -93,7 +100,9 @@ export default class DataProcessorController extends BaseClass {
   reset() {
     this.isLast = false
     this._moovSent = false
-    this.processor.postMessage({ type: 'reset' })
+    // Terminate the old worker immediately so seek/reset does not wait for any
+    // in-flight demux/decode work to finish before the new position can start.
+    this.replaceWorker()
   }
   onFlushEnd(data) {
     this.events.emit(Events.DecodeFlushEnd, data)

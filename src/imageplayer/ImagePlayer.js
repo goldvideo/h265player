@@ -60,7 +60,8 @@ export default class ImagePlayer extends BaseClass {
     this.imageData.push(data)
     let end = this.end
     let duration = end - this.player.currentTime
-    if (duration > READY.READYBUFFERLENGTH && !this.ready) {
+    const readyBufferLength = this.player.seeking ? 0 : READY.READYBUFFERLENGTH
+    if (duration > readyBufferLength && !this.ready) {
       this.ready = true
       this.status = 'ready'
       this.events.emit(Events.ImagePlayerReady)
@@ -69,6 +70,9 @@ export default class ImagePlayer extends BaseClass {
   }
   find (time) {
     return this.imageData.find(time)
+  }
+  getRenderTime (time) {
+    return this.imageData.getNearestTime(time)
   }
   buffer () {
     return this.imageData.buffer()

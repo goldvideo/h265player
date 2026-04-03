@@ -69,6 +69,7 @@ class Decode {
   //receive data and start decode
   push(dataArray) {
     let hasPartEnd = false
+    let hasLastTS = false
     dataArray.forEach(data => {
       let pts = data.PTS
       let pes = data.data_byte
@@ -78,13 +79,34 @@ class Decode {
       if (this.decodeTool.checkData(this.p)) {
         this.getDecodeYUV(this.p, false, false)
       }
-      if (data.partEnd) hasPartEnd = true
+      if (data.partEnd) {
+        hasPartEnd = true
+        hasLastTS = hasLastTS || !!data.lastTS
+      }
     })
-    // When all samples in this segment are done, flush decoder
-    // to extract remaining buffered frames (B-frames) and set maxPTS
-    if (hasPartEnd) {
-      this.flush()
+
+    if (!hasPartEnd) {
+      return
     }
+
+    if (hasLastTS) {
+      // Only flush at the real end of the media. Flushing every segment closes
+      // the decoder and breaks continuous HLS playback after the first part.
+      this.flush()
+      return
+    }
+
+    if (this.yuvArray.length) {
+      self.postMessage({
+        type: 'decoded',
+        data: this.yuvArray
+      })
+      this.yuvArray = []
+    }
+    self.postMessage({
+      type: 'partEnd',
+      data: false
+    })
   }
   getDecodeYUV(p, partEnd, lastTS) {
     if (this.reseting) {
