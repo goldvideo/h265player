@@ -95,6 +95,12 @@ export default class ImageData extends BaseClass{
       this.checkBuffer(time)
       return image
     }
+    index = this.findNearestIndex(time)
+    if (index !== -1) {
+      let image = pool[index]
+      this.checkBuffer(image.pts)
+      return image
+    }
     return
   }
   findIndex(time) {
@@ -105,6 +111,30 @@ export default class ImageData extends BaseClass{
     })
     return index
   }
+  findNearestIndex(time) {
+    let pool = this.pool
+    let length = pool.length
+    if (!length) {
+      return -1
+    }
+    for (let i = length - 1; i >= 0; i--) {
+      if (time >= parseInt(pool[i].pts)) {
+        return i
+      }
+    }
+    return 0
+  }
+  getNearestTime(time) {
+    let index = this.findIndex(time)
+    if (index !== -1) {
+      return this.pool[index].pts
+    }
+    index = this.findNearestIndex(time)
+    if (index !== -1) {
+      return this.pool[index].pts
+    }
+    return time
+  }
   isBuffered(time) {
     return time >= this.start && time < this.end
   }
@@ -114,6 +144,12 @@ export default class ImageData extends BaseClass{
     if (duration > maxBufferLength) {
       if (time > this.start) {
         let index = this.findIndex(time)
+        if (index === -1) {
+          index = this.findNearestIndex(time)
+        }
+        if (index <= 0) {
+          return false
+        }
         let reduceBuffer = this.pool.splice(0, index)
         reduceBuffer.forEach((item) => {
           item = null
