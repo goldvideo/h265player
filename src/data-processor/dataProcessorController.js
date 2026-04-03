@@ -10,6 +10,7 @@ import Events from '../config/EventsConfig'
 
 export default class DataProcessorController extends BaseClass {
   isLast = false
+  _moovSent = false
   constructor(options) {
     super(options)
     this.type = options.type
@@ -36,6 +37,13 @@ export default class DataProcessorController extends BaseClass {
 
   initNormalWorker() {
     this.processor = this.initWorker()
+  }
+  replaceWorker() {
+    if (this.processor) {
+      this.processor.terminate()
+    }
+    this.processor = this.initWorker()
+    this.loadjs()
   }
   initWorker() {
     let processor = webworkify(require.resolve('./dataProcessor.js'))
@@ -91,9 +99,10 @@ export default class DataProcessorController extends BaseClass {
   }
   reset() {
     this.isLast = false
-    this.processor.terminate()
-    this.initNormalWorker()
-    this.loadjs()
+    this._moovSent = false
+    // Terminate the old worker immediately so seek/reset does not wait for any
+    // in-flight demux/decode work to finish before the new position can start.
+    this.replaceWorker()
   }
   onFlushEnd(data) {
     this.events.emit(Events.DecodeFlushEnd, data)
@@ -119,14 +128,26 @@ export default class DataProcessorController extends BaseClass {
     this.logger.info('onStartDemux', 'postMessage to demux')
 
     if (data && data.arrayBuffer) {
-      // 根据player的type确定媒体类型
       const mediaType = this.player.options && this.player.options.type ? this.player.options.type.toLowerCase() : 'ts'
 
-      // Copy buffer instead of transferring ownership, so it remains
-      // available in the main thread for seek/re-demux after worker reset.
+      // For MP4 range loading: send moov data to Worker first
+      if (mediaType === 'mp4' && !this._moovSent) {
+        const sourceData = this.player.dataController && this.player.dataController.getMP4SourceData()
+        const moovBuffer = sourceData && sourceData.moovBuffer
+        if (moovBuffer) {
+          this.processor.postMessage({
+            type: 'initMoov',
+            data: moovBuffer,
+            mediaType: 'mp4'
+          })
+          this._moovSent = true
+        }
+      }
+
       this.processor.postMessage({
         type: 'startDemux',
         data: data.arrayBuffer,
+        byteStart: data.byteStart || 0,
         isLast: this.isLast,
         mediaType: mediaType
       })

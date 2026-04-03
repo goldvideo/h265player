@@ -26,7 +26,6 @@ export class Template {
         let value = data[name]
         value = (value === null) ? '' : value
         value = (value === undefined) ? '' : value
-        value = (!value) ? '' : value
         return value
       })
       return str

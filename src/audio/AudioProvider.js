@@ -35,6 +35,18 @@ export default class AudioProvider extends BaseClass {
         this.currentRate = value
         this.rateProcessor.rate = value
     }
+    /**
+     * Seek the read pointer to the given time (seconds).
+     */
+    seekTo(time) {
+        return this.commonProcessor.seekTo(time)
+    }
+    /**
+     * Trim buffers before the given time (seconds) to free memory.
+     */
+    trim(time) {
+        this.commonProcessor.trim(time)
+    }
     provide(size) {
         let provider = this.currentRate === 1 ? this.commonProcessor: this.rateProcessor
         let audioData = provider.provide(size)

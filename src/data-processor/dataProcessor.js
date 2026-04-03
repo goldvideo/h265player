@@ -26,13 +26,22 @@ export default self => {
     let mediaType = data.mediaType || 'ts'
 
     switch (type) {
+      case 'initMoov':
+        // Initialize mp4box with moov data — only parse tracks, don't extract samples
+        if (!self.mp4Demuxer) {
+          self.mp4Demuxer = new MP4Demux(self.decode, workerLibPath)
+        }
+        self.mp4Demuxer.appendMoov(buffer)
+        break
       case 'startDemux':
         if (mediaType === 'mp4') {
           if (!self.mp4Demuxer) {
             self.mp4Demuxer = new MP4Demux(self.decode, workerLibPath)
           }
           self.mp4Demuxer.isLast = isLast
-          self.mp4Demuxer.push(buffer)
+          // Use explicit file offset for range-loaded segments
+          let fileStart = data.byteStart
+          self.mp4Demuxer.push(buffer, fileStart > 0 ? fileStart : undefined)
         } else {
           self.demuxer.isLast = isLast
           self.demuxer.push(buffer)
@@ -44,6 +53,24 @@ export default self => {
         break
       case 'flush':
         self.decode.flush()
+        break
+      case 'reset':
+        // 1. Cancel old mp4Demuxer's async processBatch chain FIRST
+        //    to prevent it from feeding stale data to the reset decoder
+        if (self.mp4Demuxer) {
+          self.mp4Demuxer.cancelled = true
+        }
+        // 2. Reset decoder (close + reopen, WASM Module stays loaded)
+        self.decode.reset()
+        // 3. Create fresh mp4Demuxer instance (mp4box.iife.js already
+        //    in global scope, ensureMP4Box() will skip importScripts)
+        if (self.mp4Demuxer) {
+          self.mp4Demuxer = new MP4Demux(self.decode, workerLibPath)
+        }
+        // 4. Reset TS demuxer
+        if (self.demuxer) {
+          self.demuxer = new TsDemux(self.decode)
+        }
         break
     }
   }

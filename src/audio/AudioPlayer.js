@@ -19,6 +19,7 @@ export default class AudioPlayer extends BaseClass {
   lastData = null
   nodeParent = null
   useJMuxer = false
+  _listeners = []
   constructor(options = {}) {
     super(options)
     this.player = options.audioNode
@@ -72,6 +73,7 @@ export default class AudioPlayer extends BaseClass {
     })
   }
   reset() {
+    this.removeAllListeners()
     this.lastData = null
     this.first = false
     this.offset = 0
@@ -217,6 +219,16 @@ export default class AudioPlayer extends BaseClass {
 
   addEventListener(type, handler) {
     this.player.addEventListener(type, handler)
+    this._listeners.push({ target: this.player, type, handler })
+  }
+
+  removeAllListeners() {
+    this._listeners.forEach(({ target, type, handler }) => {
+      if (typeof target.removeEventListener === 'function') {
+        target.removeEventListener(type, handler)
+      }
+    })
+    this._listeners = []
   }
 
   isBuffered(time) {
@@ -232,11 +244,12 @@ export default class AudioPlayer extends BaseClass {
     if(this.useJMuxer) {
         let buffer = this.player.buffered
         let length = buffer.length
-        let bufferInfo = {}
-        while (length > 0) {
-            bufferInfo.start = buffer.start(length - 1) * 1000 + this.offset
-            bufferInfo.end = buffer.end(length - 1) * 1000 + this.offset
-            length--
+        if (length === 0) {
+            return { start: 0, end: 0 }
+        }
+        let bufferInfo = {
+            start: buffer.start(0) * 1000 + this.offset,
+            end: buffer.end(length - 1) * 1000 + this.offset
         }
         return bufferInfo
     } else {
@@ -245,6 +258,15 @@ export default class AudioPlayer extends BaseClass {
           start: buffer.start + this.offset,
           end: buffer.end + this.offset
       }
+    }
+  }
+  /**
+   * Trim audio buffers before the given time (ms, absolute PTS) to free memory.
+   */
+  trimBuffer(time) {
+    if (!this.useJMuxer && this.player && typeof this.player.trimBuffer === 'function') {
+      // Convert absolute PTS (ms) to relative time (seconds) for AudioContextPlayer
+      this.player.trimBuffer((time - this.offset) / 1000)
     }
   }
   set offset(value) {

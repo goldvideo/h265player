@@ -51,7 +51,7 @@ class BasePool extends Array {
    */
   indexOfByTime(time, match) {
     if (!match) {
-      // (start, end]
+      // [start, end)
       match = item => time >= item.start && time < item.end
     }
     let len = this.length - 1
@@ -102,13 +102,12 @@ class BasePool extends Array {
     return this.getBy(
       (model) => {
         let result = false
-        model.each((key, value) => {
+        for (const [key, value] of Object.entries(model)) {
           if (values.includes(value)) {
             result = true
-            // if have any same value, break current each
-            return false
+            break
           }
-        })
+        }
         return result
       }
     )
@@ -125,9 +124,15 @@ class BasePool extends Array {
     }
     return this.map(function (model) {
       if (keys.length) {
-        return model.get(model, keys)
+        const result = {}
+        keys.forEach(key => {
+          if (Object.prototype.hasOwnProperty.call(model, key)) {
+            result[key] = model[key]
+          }
+        })
+        return result
       } else {
-        return model.getValues(model)
+        return model.toJSON ? model.toJSON() : Object.assign({}, model)
       }
     })
   }

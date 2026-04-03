@@ -17,20 +17,6 @@ export default class Element {
     return el
   }
 
-  /**
-   * 
-   * @param {string} tagName 
-   * @param {HTMLElement} [extendEle] 
-   * @param {string} [extendEle] 
-   */
-  static registerElement(tagName, extendEle = HTMLElement, extendName) {
-    let el = document.registerElement(tagName, {
-      prototype: Object.create(extendEle.prototype),
-      extends: extendName
-    })
-    return el
-  }
-
   static addEl(el, parent) {
     if (el && parent) {
       try {
@@ -86,9 +72,12 @@ export default class Element {
   }
 
   static syncAttributes(oldNode, newNode) {
+    // Snapshot old attributes before mutation to avoid contamination
+    const oldAttrs = Array.from(oldNode.attributes)
     const newAttrs = newNode.attributes
+    // new → old: apply template updates to DOM
     Element.setAttributes(oldNode, newAttrs)
-    const oldAttrs = oldNode.attributes
+    // old → new: preserve runtime state (bidirectional binding)
     Element.setAttributes(newNode, oldAttrs)
   }
 

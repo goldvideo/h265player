@@ -46,7 +46,7 @@ class MP4Demux {
       console.error('MP4Box not available')
       return
     }
-    this.mp4boxfile = MP4Box.createFile({ chunked: false })
+    this.mp4boxfile = MP4Box.createFile()
 
     this.mp4boxfile.onReady = (info) => {
       this.initialized = true
@@ -117,7 +117,7 @@ class MP4Demux {
         PTS: pts90k,
         data_byte: data,
         partEnd: isLast,
-        lastTS: isLast
+        lastTS: isLast && !!this.isLast
       })
     })
     if (pesList.length) {
@@ -287,7 +287,7 @@ class MP4Demux {
     return out
   }
 
-  push(buffer) {
+  push(buffer, explicitFileStart) {
     if (!buffer || !this.mp4boxfile) return
 
     // Convert various buffer types to ArrayBuffer
@@ -313,8 +313,12 @@ class MP4Demux {
       this.fullBuffer = ab
     }
 
-    ab.fileStart = this.fileStart
-    this.fileStart += ab.byteLength
+    if (explicitFileStart !== undefined) {
+      ab.fileStart = explicitFileStart
+    } else {
+      ab.fileStart = this.fileStart
+    }
+    this.fileStart = ab.fileStart + ab.byteLength
 
     try {
       let appendSuccess = false
@@ -1064,6 +1068,8 @@ class MP4Demux {
     let offset = 0
 
     const processBatch = () => {
+      // Stop if this demuxer instance was cancelled during reset
+      if (this.cancelled) return
       const pesList = []
       const end = Math.min(offset + BATCH_SIZE, samples.length)
 
@@ -1082,7 +1088,7 @@ class MP4Demux {
           PTS: pts90k,
           data_byte: data,
           partEnd: isLast,
-          lastTS: isLast
+          lastTS: isLast && !!this.isLast
         })
       }
 
@@ -1150,7 +1156,38 @@ class MP4Demux {
       }
     }
   }
+
+  /**
+   * Append moov-only data to mp4box for track initialization.
+   * Does NOT flush or attempt sample extraction — that happens
+   * when mdat segments arrive via push().
+   */
+  appendMoov(buffer) {
+    if (!this.mp4boxfile) return
+
+    let ab = null
+    if (buffer instanceof ArrayBuffer) {
+      ab = buffer
+    } else if (buffer instanceof Uint8Array) {
+      ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+    } else if (ArrayBuffer.isView(buffer)) {
+      ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+    } else if (buffer && buffer.buffer instanceof ArrayBuffer) {
+      ab = buffer.buffer
+    }
+    if (!ab || ab.byteLength === 0) return
+
+    ab.fileStart = 0
+    this.fileStart = ab.byteLength
+
+    try {
+      this.mp4boxfile.appendBuffer(ab)
+      console.log('[MP4Demux] moov appended, fileStart:', this.fileStart,
+        'initialized:', this.initialized)
+    } catch (e) {
+      console.warn('[MP4Demux] appendMoov error:', e.message)
+    }
+  }
 }
 
 export default MP4Demux
-

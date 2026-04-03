@@ -46,6 +46,11 @@ export default class Action extends BaseClass {
     this.logger.warn('play', 'play start')
     this.sync(currentTime)
   }
+  finishSeekIfNeeded() {
+    if (this.player.seeking) {
+      this.player.seeking = false
+    }
+  }
   sync(time) {
     let player = this.player
     let audioPlayer = this.audioPlayer
@@ -59,16 +64,28 @@ export default class Action extends BaseClass {
       maxTime = vOffset
     }
     let playbackRate = player.playbackRate
-    if (player.seeking) {
-      player.seeking = false
-    }
     if (player.reseting) {
       return
     }
     if (player.status === 'pause') {
       return
     }
-    if (audioPlayer.status === 'waiting' || imagePlayer.status === 'wait') {
+    if (imagePlayer.status === 'wait') {
+      return
+    }
+    if (audioPlayer.status === 'waiting') {
+      // If near the end of the video, don't block — let video finish
+      let durationMs = player.duration * 1000
+      if (durationMs > 0 && time >= durationMs - 500) {
+        this.events.emit(Events.PlayerEnd)
+        return
+      }
+      if (player.seeking && imagePlayer.isBuffered(time)) {
+        const renderTime = imagePlayer.getRenderTime(time)
+        this.setCurrentTime(renderTime)
+        this.finishSeekIfNeeded()
+        imagePlayer.render(renderTime)
+      }
       return
     }
     if (player.status === 'end') {
@@ -85,6 +102,7 @@ export default class Action extends BaseClass {
     //only play audio
     if (audioPlayer.need && time >= aOffset && time <= vOffset) {
       this.events.once(Events.AudioPlayerPlaySuccess, () => {
+        this.finishSeekIfNeeded()
         imagePlayer.render(vOffset)
       })
       audioPlayer.playbackRate = playbackRate
@@ -93,11 +111,13 @@ export default class Action extends BaseClass {
     }
     //only play image
     if (time >= vOffset && (!audioPlayer.need || time <= aOffset)) {
+      this.finishSeekIfNeeded()
       imagePlayer.render(time)
       return
     }
     //audio and image start play
     if (time > maxTime) {
+      this.finishSeekIfNeeded()
       this.audioPlayer.playbackRate = playbackRate
       this.audioPlayer.play()
       imagePlayer.render(time)
@@ -112,6 +132,26 @@ export default class Action extends BaseClass {
     this.player.currentTime = time
     this.events.emit(Events.PlayerTimeUpdate, time)
   }
+  resumeBufferedSeek(time, syncAudio = true) {
+    this.player.currentTime = time
+    if (syncAudio) {
+      try {
+        this.audioPlayer.currentTime = time
+      } catch (e) {
+        this.logger.warn('seek', 'audio seek failed, continue with video frame seek')
+      }
+    }
+    this.finishSeekIfNeeded()
+    // Render the first frame immediately so seek does not pause for an extra
+    // turn of the event loop waiting on audio seek/play callbacks.
+    this.imagePlayer.render(time)
+    if (this.audioPlayer.need) {
+      this.audioPlayer.playbackRate = this.player.playbackRate
+      this.audioPlayer.play()
+    }
+    this.player.status = 'playing'
+    this.events.emit(Events.PlayerPlay, this.player)
+  }
 
   pause() {
     this.audioPlayer.pause()
@@ -120,30 +160,21 @@ export default class Action extends BaseClass {
   seek(time) {
     let videoBuffered = this.imagePlayer.isBuffered(time)
     let audioBuffered = this.audioPlayer.isBuffered(time)
+    let renderTime = videoBuffered ? this.imagePlayer.getRenderTime(time) : time
     this.player.pause()
     //video and audio have the same time period
     if (videoBuffered && audioBuffered) {
       this.logger.warn('seek', `seek in buffer, time: ${time}, buffer: ${this.player.buffer()[0]}, ${this.player.buffer()[1]}`)
-      this.audioPlayer.onSeekedHandler = () => {
-        this.player.play()
-      }
-      this.audioPlayer.currentTime = time
+      this.resumeBufferedSeek(renderTime, true)
 
     } else if (videoBuffered && !this.audioPlayer.need) {
       // MP4 with no audio sync: seek directly within video buffer
-      this.player.currentTime = time
-      this.player.play()
+      this.resumeBufferedSeek(renderTime, false)
 
     } else if (videoBuffered && this.audioPlayer.need) {
-      // Video buffered but audio not — seek video in-buffer,
-      // reset audio position and resume (avoids expensive full reset)
-      this.player.currentTime = time
-      try {
-        this.audioPlayer.currentTime = time
-      } catch(e) {
-        this.logger.warn('seek', 'audio seek failed, continuing without audio sync')
-      }
-      this.player.play()
+      // HLS: if video is already buffered, resume from the nearest decodable
+      // frame instead of resetting the whole pipeline just because audio lags.
+      this.resumeBufferedSeek(renderTime, true)
 
     } else {
       this.reset()
@@ -218,6 +249,10 @@ export default class Action extends BaseClass {
     let fragDuration = imagePlayer.fragDuration
     let delay = aCurrentTime - vCurrentTime
     let nextTime = 0
+
+    // Periodically trim old buffers to free memory (every ~2 seconds of playback)
+    this.trimBuffers(vCurrentTime)
+
     //no audio
     if (!audioPlayer.need) {
       this.drawNext(time + gap, Math.ceil(gap / playbackRate))
@@ -228,19 +263,56 @@ export default class Action extends BaseClass {
       this.drawNext(vCurrentTime + fragDuration * playbackRate, fragDuration)
       return
     }
+    // If audio time is wildly out of sync (e.g. after backward seek when audio
+    // buffers were depleted), ignore A/V sync and render at normal speed.
+    // This prevents the "extremely slow playback" bug.
+    let absDelay = Math.abs(delay)
+    if (absDelay > 2000) {
+      this.drawNext(time + gap, Math.ceil(gap / playbackRate))
+      return
+    }
+    // Cap to prevent extremely slow playback after seek near end
+    let maxWait = fragDuration * 2
     if (delay > 0) {
       if (delay > fragDuration) {
+        // Audio far ahead — skip video frames to catch up
         nextTime = vCurrentTime + Math.ceil(delay / fragDuration + playbackRate) * fragDuration
-        fragDuration = nextTime - aCurrentTime
+        fragDuration = Math.max(nextTime - aCurrentTime, 1)
+        fragDuration = Math.min(fragDuration, maxWait)
       } else {
+        // Audio slightly ahead — speed up video a bit
         nextTime = vCurrentTime + fragDuration * playbackRate
-        fragDuration = fragDuration - delay
+        fragDuration = Math.max(fragDuration - delay, 1)
       }
     } else {
+      // Video ahead of audio — slow down slightly but cap the wait
       nextTime = vCurrentTime + fragDuration * playbackRate
-      fragDuration = fragDuration - delay
+      fragDuration = Math.min(fragDuration - delay, maxWait)
     }
     this.drawNext(nextTime, fragDuration)
+  }
+  /**
+   * Trim old video and audio buffers that are well behind the current playback
+   * position to keep memory usage bounded for long videos.
+   * Called periodically from onRenderEnd.
+   */
+  trimBuffers(currentTime) {
+    // Only trim every ~2 seconds to avoid overhead
+    if (this._lastTrimTime && currentTime - this._lastTrimTime < 2000) {
+      return
+    }
+    this._lastTrimTime = currentTime
+
+    // Keep a safety margin before current position (e.g. 5 seconds)
+    let trimBefore = currentTime - 5000
+    if (trimBefore <= 0) {
+      return
+    }
+    // Trim audio buffers
+    if (this.audioPlayer && typeof this.audioPlayer.trimBuffer === 'function') {
+      this.audioPlayer.trimBuffer(trimBefore)
+    }
+    // Video trimming is handled by ImageData.checkBuffer via maxBufferLength
   }
   drawNext(time, spanTime) {
     if (this.drawFrameHanlder) {
