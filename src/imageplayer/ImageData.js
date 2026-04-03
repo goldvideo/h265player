@@ -157,6 +157,7 @@ export default class ImageData extends BaseClass{
         reduceBuffer = null
         this.start = this.pool[0].pts
         this.duration = this.end - this.start
+        this.events.emit(Events.ImagePlayerBuffeUpdate)
       }
       return false
     } else {
