@@ -2,28 +2,35 @@
  * Copyright (C) 2019.
  * All Rights Reserved.
  * @file Utils.js
- * @desc
- * global public tool utils
+ * @desc global public tool utils
  * @author Jarry
  */
 import loadjs from 'loadjs'
 
+// 类型判断辅助函数（返回布尔值）
 function is(clazz = 'Object') {
   return function (obj) {
     let type = '[object ' + clazz + ']'
-    return (Object.prototype.toString.call(obj) == type)
+    return Object.prototype.toString.call(obj) === type
   }
 }
-export default class Utils {
 
-  static isObject = () => is('Object')
-  static isString = () => is('String')
-  static isFunction = () => is('Function')
+export default class Utils {
+  static isObject(obj) {
+    return is('Object')(obj)
+  }
+  static isString(obj) {
+    return is('String')(obj)
+  }
+  static isFunction(obj) {
+    return is('Function')(obj)
+  }
+
   /**
    * load script dynamic
-   * @param {String} urls 
+   * @param {String|Array} urls 
    * @param {Function} callback 
-   * @param {Object} error 
+   * @param {Function} error 
    */
   static importScripts(urls, callback, error) {
     let name = 'ready' + Date.now()
@@ -38,21 +45,22 @@ export default class Utils {
       error: error
     })
   }
+
   static blobData(str) {
     let blob = new Blob([str], { type: 'application/javascript' })
     return URL.createObjectURL(blob)
   }
 
   static escapeHTML(str) {
-    if (!(Utils.isString(str))) {
-      return
+    if (!Utils.isString(str)) {
+      return str  // 非字符串原样返回（或可返回空字符串）
     }
     return str.replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;")
- }
+  }
 
   static getInnerWidthHeight() {
     return {
@@ -63,14 +71,13 @@ export default class Utils {
 
   static Fullscreen() {
     const ele = document.documentElement
-    if (ele .requestFullscreen) {
-      ele .requestFullscreen()
-    } else if (ele .mozRequestFullScreen) {
-      ele .mozRequestFullScreen()
-    } else if (ele .webkitRequestFullScreen) {
-      ele .webkitRequestFullScreen()
-      setTimeout(()=> {
-        // console.error('fullscreen success')
+    if (ele.requestFullscreen) {
+      ele.requestFullscreen()
+    } else if (ele.mozRequestFullScreen) {
+      ele.mozRequestFullScreen()
+    } else if (ele.webkitRequestFullScreen) {
+      ele.webkitRequestFullScreen()
+      setTimeout(() => {
         document.dispatchEvent(new Event('fullscreenchange'))
       }, 0)
     }
@@ -84,8 +91,7 @@ export default class Utils {
       doc.mozCancelFullScreen()
     } else if (doc.webkitExitFullscreen) {
       doc.webkitExitFullscreen()
-      setTimeout(()=> {
-        // console.error('exitfullscreen success')
+      setTimeout(() => {
         document.dispatchEvent(new Event('fullscreenchange'))
       }, 0)
     }
@@ -97,6 +103,7 @@ export default class Utils {
     })
   }
 
+  // 插入排序
   static insertSort(array, target, filter) {
     let length = array.length
     let key, value
